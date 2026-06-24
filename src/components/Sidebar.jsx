@@ -15,13 +15,17 @@ import {
 } from 'lucide-react';
 import './Sidebar.css';
 
-const Sidebar = () => {
+const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const closeSidebar = () => {
+    if (setMobileOpen) setMobileOpen(false);
   };
 
   // Define links based on role
@@ -55,7 +59,7 @@ const Sidebar = () => {
   const links = getLinks();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">
           <ShieldAlert className="logo-icon" size={28} />
@@ -72,6 +76,7 @@ const Sidebar = () => {
           <NavLink 
             key={link.to} 
             to={link.to}
+            onClick={closeSidebar}
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             {link.icon}

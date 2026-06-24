@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
@@ -21,6 +22,7 @@ import DiscrepancyReport from './pages/Auditor/DiscrepancyReport';
 
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (loading) return <div className="page-content flex items-center justify-center"><div className="spinner"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
@@ -30,8 +32,23 @@ const ProtectedRoute = ({ allowedRoles }) => {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+      
+      {/* Mobile Backdrop */}
+      {mobileMenuOpen && (
+        <div className="sidebar-backdrop" onClick={() => setMobileMenuOpen(false)}></div>
+      )}
+
       <main className="main-content">
+        <div className="mobile-header">
+          <div className="flex items-center gap-2 font-bold text-lg" style={{ color: 'var(--accent-color)' }}>
+            <div style={{ width: '24px', height: '24px', backgroundColor: 'var(--accent-color)', borderRadius: '4px' }}></div>
+            AuditPro
+          </div>
+          <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => setMobileMenuOpen(true)}>
+            <Menu size={20} />
+          </button>
+        </div>
         <div className="page-content">
           <Outlet />
         </div>

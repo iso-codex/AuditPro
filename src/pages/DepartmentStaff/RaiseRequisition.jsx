@@ -131,7 +131,7 @@ const RaiseRequisition = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="flex gap-4 mb-6">
+          <div className="flex flex-col-mobile gap-4 mb-6">
             <div className="form-group flex-1">
               <label className="form-label">Department</label>
               <input type="text" className="form-input bg-gray-50 text-gray-500" value={profile?.department || ''} readOnly disabled />
