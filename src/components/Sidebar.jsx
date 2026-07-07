@@ -14,7 +14,9 @@ import {
   FileText,
   Users,
   Database,
-  Globe
+  Globe,
+  Truck,
+  ShoppingCart
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -38,6 +40,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     switch (profile.role) {
       case 'store_manager':
         return [
+          { to: '/manager/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
           { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
@@ -59,7 +62,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
           { to: '/admin/catalog', icon: <Database size={20} />, label: 'Catalog Management' },
           { to: '/admin/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
+          { to: '/admin/suppliers', icon: <Truck size={20} />, label: 'Supplier Management' },
           // Store Manager capabilities
+          { to: '/manager/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
           { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },

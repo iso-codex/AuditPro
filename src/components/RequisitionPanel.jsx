@@ -120,7 +120,10 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
 
         await supabase
           .from('requisition_items')
-          .update({ quantity_dispatched: item.quantity_approved })
+          .update({ 
+            quantity_dispatched: item.quantity_approved,
+            unit_cost: item.items.unit_cost || 0
+          })
           .eq('id', item.id);
 
         if (newStock <= item.items.low_stock_threshold) {

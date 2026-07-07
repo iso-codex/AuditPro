@@ -11,6 +11,7 @@ import ReceiveGoods from './pages/StoreManager/ReceiveGoods';
 import RequisitionInbox from './pages/StoreManager/RequisitionInbox';
 import StockLevels from './pages/StoreManager/StockLevels';
 import DispatchHistory from './pages/StoreManager/DispatchHistory';
+import PurchaseOrders from './pages/StoreManager/PurchaseOrders';
 
 // Department Staff Pages
 import RaiseRequisition from './pages/DepartmentStaff/RaiseRequisition';
@@ -25,6 +26,7 @@ import DiscrepancyReport from './pages/Auditor/DiscrepancyReport';
 import UserManagement from './pages/Admin/UserManagement';
 import CatalogManagement from './pages/Admin/CatalogManagement';
 import GlobalRequisitions from './pages/Admin/GlobalRequisitions';
+import SupplierManagement from './pages/Admin/SupplierManagement';
 
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
@@ -78,6 +80,7 @@ const AppRoutes = () => {
         <Route path="/manager/inbox" element={<RequisitionInbox />} />
         <Route path="/manager/stock" element={<StockLevels />} />
         <Route path="/manager/dispatch" element={<DispatchHistory />} />
+        <Route path="/manager/purchase-orders" element={<PurchaseOrders />} />
       </Route>
 
       {/* Admin Routes */}
@@ -85,6 +88,7 @@ const AppRoutes = () => {
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/catalog" element={<CatalogManagement />} />
         <Route path="/admin/requisitions" element={<GlobalRequisitions />} />
+        <Route path="/admin/suppliers" element={<SupplierManagement />} />
       </Route>
 
       {/* Department Staff Routes */}

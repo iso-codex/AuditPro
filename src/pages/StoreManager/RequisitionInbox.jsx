@@ -17,8 +17,8 @@ const RequisitionInbox = () => {
           *,
           profiles:requested_by (full_name),
           requisition_items (
-            id, item_id, quantity_requested, quantity_approved, quantity_dispatched, quantity_confirmed,
-            items (name, unit, quantity_in_store)
+            id, item_id, quantity_requested, quantity_approved, quantity_dispatched, quantity_confirmed, unit_cost,
+            items (name, unit, quantity_in_store, unit_cost)
           )
         `)
         .order('date_requested', { ascending: false });
