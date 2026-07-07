@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, LogIn, AlertCircle } from 'lucide-react';
+import { ShieldAlert, LogIn, AlertCircle, ClipboardCheck, Search, FileText, BarChart2, CheckCircle } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
@@ -9,8 +9,16 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const { login, user, profile, profileError } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2900); // Coordinates with 2.5s delay + 0.4s fade out
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (user && profile) {
@@ -46,8 +54,25 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
+    <>
+      {showSplash && (
+        <div className="splash-container">
+          <div className="floating-icons">
+            <ClipboardCheck size={48} className="floating-icon icon-1" />
+            <Search size={40} className="floating-icon icon-2" />
+            <FileText size={56} className="floating-icon icon-3" />
+            <BarChart2 size={44} className="floating-icon icon-4" />
+            <CheckCircle size={36} className="floating-icon icon-5" />
+          </div>
+          <div className="splash-logo">
+            <ShieldAlert size={48} strokeWidth={2.5} />
+          </div>
+          <h1 className="splash-text">AuditPro</h1>
+          <p className="splash-subtitle">Inventory & Auditing System</p>
+        </div>
+      )}
+      <div className="login-container">
+        <div className="login-card">
         <div className="login-header">
           <div className="login-logo">
             <ShieldAlert size={40} className="logo-icon" />
@@ -117,6 +142,7 @@ const Login = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };
 
