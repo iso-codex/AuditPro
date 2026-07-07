@@ -185,11 +185,11 @@ const RaiseRequisition = () => {
         notes: `Raised requisition ${reqId.split('-')[0]} with ${validItems.length} items.`
       }]);
 
-      // 4. Notify Store Managers
+      // 4. Notify Store Managers and Auditors
       const { data: managers } = await supabase
         .from('profiles')
         .select('id')
-        .eq('role', 'store_manager');
+        .in('role', ['store_manager', 'auditor']);
         
       if (managers && managers.length > 0) {
         const notificationsData = managers.map(m => ({
