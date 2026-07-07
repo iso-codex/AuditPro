@@ -9,15 +9,31 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [pushStatus, setPushStatus] = useState('');
+
+  const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBtc3sHAEwgwkU8A5I7h9m5o4';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
 
   useEffect(() => {
     if (!profile) return;
 
-    // Request browser notification permission
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission();
-      }
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          setIsSubscribed(!!sub);
+        });
+      });
     }
 
     const fetchNotifications = async () => {
@@ -93,6 +109,38 @@ const NotificationBell = () => {
     }
   };
 
+  const subscribeToPush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert("Push notifications are not supported in this browser.");
+      return;
+    }
+    setPushStatus('Subscribing...');
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let subscription = await reg.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+        });
+      }
+      
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        user_id: profile.id,
+        subscription: subscription.toJSON()
+      }, { onConflict: 'user_id, subscription' });
+      
+      if (error) throw error;
+      
+      setIsSubscribed(true);
+      setPushStatus('');
+    } catch (error) {
+      console.error("Push subscribe error:", error);
+      alert("Failed to subscribe to push notifications. Ensure you have granted permissions.");
+      setPushStatus('');
+    }
+  };
+
   return (
     <div className="notification-bell-container">
       <button className="bell-button btn btn-outline" onClick={() => setIsOpen(!isOpen)} title="Notifications">
@@ -108,9 +156,16 @@ const NotificationBell = () => {
           <div className="notification-dropdown card">
             <div className="notification-header">
               <h3>Notifications</h3>
-              {unreadCount > 0 && (
-                <button className="btn-text" onClick={markAllAsRead}>Mark all read</button>
-              )}
+              <div className="flex gap-2 items-center">
+                {!isSubscribed && (
+                  <button className="btn btn-outline text-xs" style={{ padding: '0.25rem 0.5rem' }} onClick={subscribeToPush} disabled={!!pushStatus}>
+                    {pushStatus || 'Enable Push'}
+                  </button>
+                )}
+                {unreadCount > 0 && (
+                  <button className="btn-text" onClick={markAllAsRead}>Mark all read</button>
+                )}
+              </div>
             </div>
             
             <div className="notification-list">

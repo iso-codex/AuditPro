@@ -199,6 +199,28 @@ const RaiseRequisition = () => {
           link: '/manager/inbox'
         }));
         await supabase.from('notifications').insert(notificationsData);
+
+        // 5. Trigger Web Push Notifications
+        const { data: subscriptions } = await supabase
+          .from('push_subscriptions')
+          .select('subscription')
+          .in('user_id', managers.map(m => m.id));
+
+        if (subscriptions && subscriptions.length > 0) {
+          for (const sub of subscriptions) {
+            // Non-blocking invocation
+            supabase.functions.invoke('send-push', {
+              body: {
+                subscription: sub.subscription,
+                payload: {
+                  title: 'New Requisition',
+                  message: `New requisition raised by ${profile.department} department.`,
+                  link: '/manager/inbox'
+                }
+              }
+            }).catch(e => console.error('Push error:', e));
+          }
+        }
       }
 
       setMessage({ type: 'success', text: `Requisition submitted successfully!` });
