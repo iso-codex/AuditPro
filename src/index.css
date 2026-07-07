@@ -77,9 +77,9 @@ body {
   scroll-behavior: smooth;
 }
 
-/* Mobile Header */
+/* Top Header */
 .mobile-header {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem;
@@ -133,11 +133,21 @@ body {
   }
   
   .mobile-header {
-    display: flex;
+    /* display: flex; already flex */
   }
   
   .page-content {
     padding: 1rem;
+  }
+}
+
+.hide-on-desktop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-on-desktop {
+    display: flex;
   }
 }
 

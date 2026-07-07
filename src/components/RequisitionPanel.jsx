@@ -46,8 +46,18 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         action_type: 'Approved',
         actor_id: profile.id,
         department: requisition.department,
-        notes: `Requisition ${requisition.id} approved`
+        notes: `Requisition ${requisition.id.split('-')[0]} approved`
       }]);
+
+      // Notify requester
+      if (requisition.requested_by) {
+        await supabase.from('notifications').insert([{
+          user_id: requisition.requested_by,
+          title: 'Requisition Approved',
+          message: `Your requisition #${requisition.id.split('-')[0]} has been approved.`,
+          link: '/staff/my-requisitions'
+        }]);
+      }
 
       onUpdate();
       onClose();
@@ -71,8 +81,18 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         action_type: 'Rejected',
         actor_id: profile.id,
         department: requisition.department,
-        notes: `Requisition ${requisition.id} rejected. Reason: ${rejectReason}`
+        notes: `Requisition ${requisition.id.split('-')[0]} rejected. Reason: ${rejectReason}`
       }]);
+
+      // Notify requester
+      if (requisition.requested_by) {
+        await supabase.from('notifications').insert([{
+          user_id: requisition.requested_by,
+          title: 'Requisition Rejected',
+          message: `Your requisition #${requisition.id.split('-')[0]} has been rejected.`,
+          link: '/staff/my-requisitions'
+        }]);
+      }
 
       onUpdate();
       onClose();
@@ -86,6 +106,8 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
   const processDispatch = async () => {
     setSubmitting(true);
     try {
+      let lowStockAlerts = [];
+
       for (const item of items) {
         // deduct from store
         const newStock = parseFloat(item.items.quantity_in_store) - parseFloat(item.quantity_approved);
@@ -100,6 +122,10 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
           .from('requisition_items')
           .update({ quantity_dispatched: item.quantity_approved })
           .eq('id', item.id);
+
+        if (newStock <= item.items.low_stock_threshold) {
+          lowStockAlerts.push(item.items.name);
+        }
       }
 
       await supabase
@@ -111,8 +137,32 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         action_type: 'Dispatched',
         actor_id: profile.id,
         department: requisition.department,
-        notes: `Requisition ${requisition.id} dispatched`
+        notes: `Requisition ${requisition.id.split('-')[0]} dispatched`
       }]);
+
+      // Notify requester
+      if (requisition.requested_by) {
+        await supabase.from('notifications').insert([{
+          user_id: requisition.requested_by,
+          title: 'Requisition Dispatched',
+          message: `Your requisition #${requisition.id.split('-')[0]} has been dispatched.`,
+          link: '/staff/my-requisitions'
+        }]);
+      }
+
+      // Notify Store Managers of low stock
+      if (lowStockAlerts.length > 0) {
+        const { data: managers } = await supabase.from('profiles').select('id').eq('role', 'store_manager');
+        if (managers && managers.length > 0) {
+          const alerts = managers.map(m => ({
+            user_id: m.id,
+            title: 'Low Stock Alert',
+            message: `The following items are low on stock: ${lowStockAlerts.join(', ')}`,
+            link: '/manager/stock'
+          }));
+          await supabase.from('notifications').insert(alerts);
+        }
+      }
 
       onUpdate();
       onClose();

@@ -17,6 +17,7 @@ const Login = () => {
       if (profile.role === 'store_manager') navigate('/manager/stock');
       else if (profile.role === 'department_staff') navigate('/staff/my-requisitions');
       else if (profile.role === 'auditor') navigate('/auditor/overview');
+      else if (profile.role === 'admin') navigate('/admin/users');
     }
   }, [user, profile, navigate]);
 
@@ -72,7 +73,7 @@ const Login = () => {
           </div>
         )}
         
-        {user && profile && !['store_manager', 'department_staff', 'auditor'].includes(profile.role) && (
+        {user && profile && !['store_manager', 'department_staff', 'auditor', 'admin'].includes(profile.role) && (
           <div className="login-error">
             <AlertCircle size={18} />
             <span>Profile found, but role '{profile.role}' is not recognized.</span>
@@ -103,7 +104,6 @@ const Login = () => {
               required 
             />
           </div>
-          
           <button type="submit" className="btn btn-primary w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <div className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }}></div>

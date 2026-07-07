@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
+import NotificationBell from './components/NotificationBell';
 
 // Store Manager Pages
 import ReceiveGoods from './pages/StoreManager/ReceiveGoods';
@@ -19,6 +20,11 @@ import MyRequisitions from './pages/DepartmentStaff/MyRequisitions';
 import AuditorOverview from './pages/Auditor/Overview';
 import AuditLog from './pages/Auditor/AuditLog';
 import DiscrepancyReport from './pages/Auditor/DiscrepancyReport';
+
+// Admin Pages
+import UserManagement from './pages/Admin/UserManagement';
+import CatalogManagement from './pages/Admin/CatalogManagement';
+import GlobalRequisitions from './pages/Admin/GlobalRequisitions';
 
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
@@ -45,9 +51,12 @@ const ProtectedRoute = ({ allowedRoles }) => {
             <div style={{ width: '24px', height: '24px', backgroundColor: 'var(--accent-color)', borderRadius: '4px' }}></div>
             AuditPro
           </div>
-          <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => setMobileMenuOpen(true)}>
-            <Menu size={20} />
-          </button>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+            <button className="btn btn-outline hide-on-desktop" style={{ padding: '0.5rem' }} onClick={() => setMobileMenuOpen(true)}>
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
         <div className="page-content">
           <Outlet />
@@ -63,12 +72,19 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       
-      {/* Store Manager Routes */}
-      <Route element={<ProtectedRoute allowedRoles={['store_manager']} />}>
+      {/* Store Manager Routes (Admins also get access) */}
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'admin']} />}>
         <Route path="/manager/receive" element={<ReceiveGoods />} />
         <Route path="/manager/inbox" element={<RequisitionInbox />} />
         <Route path="/manager/stock" element={<StockLevels />} />
         <Route path="/manager/dispatch" element={<DispatchHistory />} />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin/users" element={<UserManagement />} />
+        <Route path="/admin/catalog" element={<CatalogManagement />} />
+        <Route path="/admin/requisitions" element={<GlobalRequisitions />} />
       </Route>
 
       {/* Department Staff Routes */}

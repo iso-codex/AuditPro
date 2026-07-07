@@ -11,7 +11,10 @@ import {
   List, 
   LayoutDashboard, 
   ShieldAlert, 
-  FileText
+  FileText,
+  Users,
+  Database,
+  Globe
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -50,6 +53,17 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
+        ];
+      case 'admin':
+        return [
+          { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
+          { to: '/admin/catalog', icon: <Database size={20} />, label: 'Catalog Management' },
+          { to: '/admin/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
+          // Store Manager capabilities
+          { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
+          { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
+          { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
+          { to: '/manager/dispatch', icon: <History size={20} />, label: 'Dispatch History' },
         ];
       default:
         return [];

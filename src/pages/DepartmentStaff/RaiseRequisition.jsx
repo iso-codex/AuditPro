@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Send, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Send, AlertCircle, Save, Download } from 'lucide-react';
 
 const RaiseRequisition = () => {
   const { profile } = useAuth();
@@ -14,21 +14,105 @@ const RaiseRequisition = () => {
   const [lineItems, setLineItems] = useState([
     { id: Date.now(), item_id: '', quantity: '' }
   ]);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchInitialData = async () => {
       try {
-        const { data, error } = await supabase.from('items').select('*').order('name');
-        if (error) throw error;
-        setItems(data || []);
+        const [itemsRes, templatesRes] = await Promise.all([
+          supabase.from('items').select('*').order('name'),
+          supabase.from('requisition_templates').select('*').eq('department', profile?.department || '').order('name')
+        ]);
+        if (itemsRes.error) throw itemsRes.error;
+        if (templatesRes.error) throw templatesRes.error;
+        
+        setItems(itemsRes.data || []);
+        setTemplates(templatesRes.data || []);
       } catch (error) {
-        console.error('Error fetching items:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchItems();
-  }, []);
+    if (profile?.department) {
+      fetchInitialData();
+    }
+  }, [profile]);
+
+  const loadTemplate = async (templateId) => {
+    if (!templateId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('requisition_template_items')
+        .select('*')
+        .eq('template_id', templateId);
+      
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setLineItems(data.map(item => ({
+          id: crypto.randomUUID(),
+          item_id: item.item_id,
+          quantity: item.quantity
+        })));
+        setMessage({ type: 'success', text: 'Template loaded successfully.' });
+      } else {
+        setMessage({ type: 'error', text: 'Template is empty.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to load template.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveAsTemplate = async () => {
+    const validItems = lineItems.filter(li => li.item_id && li.quantity > 0);
+    if (validItems.length === 0) {
+      setMessage({ type: 'error', text: 'Please add at least one valid item to save as a template.' });
+      return;
+    }
+
+    const templateName = prompt("Enter a name for this template:");
+    if (!templateName) return;
+
+    setSavingTemplate(true);
+    try {
+      const templateId = crypto.randomUUID();
+      const { error: templateError } = await supabase
+        .from('requisition_templates')
+        .insert([{
+          id: templateId,
+          name: templateName,
+          department: profile.department,
+          created_by: profile.id
+        }]);
+        
+      if (templateError) throw templateError;
+
+      const templateItemsData = validItems.map(li => ({
+        template_id: templateId,
+        item_id: li.item_id,
+        quantity: parseFloat(li.quantity)
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('requisition_template_items')
+        .insert(templateItemsData);
+
+      if (itemsError) throw itemsError;
+
+      setTemplates([...templates, { id: templateId, name: templateName, department: profile.department }]);
+      setMessage({ type: 'success', text: `Template "${templateName}" saved successfully!` });
+    } catch (error) {
+      console.error('Template save error:', error);
+      setMessage({ type: 'error', text: 'Failed to save template.' });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const addLineItem = () => {
     setLineItems([...lineItems, { id: Date.now(), item_id: '', quantity: '' }]);
@@ -101,6 +185,22 @@ const RaiseRequisition = () => {
         notes: `Raised requisition ${reqId.split('-')[0]} with ${validItems.length} items.`
       }]);
 
+      // 4. Notify Store Managers
+      const { data: managers } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'store_manager');
+        
+      if (managers && managers.length > 0) {
+        const notificationsData = managers.map(m => ({
+          user_id: m.id,
+          title: 'New Requisition',
+          message: `New requisition raised by ${profile.department} department.`,
+          link: '/manager/inbox'
+        }));
+        await supabase.from('notifications').insert(notificationsData);
+      }
+
       setMessage({ type: 'success', text: `Requisition submitted successfully!` });
       setLineItems([{ id: Date.now(), item_id: '', quantity: '' }]);
       setNotes('');
@@ -116,9 +216,27 @@ const RaiseRequisition = () => {
 
   return (
     <div className="raise-requisition-page" style={{ maxWidth: '800px' }}>
-      <div className="mb-6">
-        <h2>Raise a Requisition</h2>
-        <p>Request supplies from the company store for your department.</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2>Raise a Requisition</h2>
+          <p>Request supplies from the company store for your department.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select 
+            className="form-select" 
+            value={selectedTemplate} 
+            onChange={(e) => {
+              setSelectedTemplate(e.target.value);
+              loadTemplate(e.target.value);
+            }}
+            style={{ width: '200px' }}
+          >
+            <option value="">Load Template...</option>
+            {templates.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="card">
@@ -214,9 +332,13 @@ const RaiseRequisition = () => {
             ></textarea>
           </div>
 
-          <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? <div className="spinner border-0"></div> : <Send size={18} />}
+          <div className="flex justify-between pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            <button type="button" className="btn btn-outline" onClick={saveAsTemplate} disabled={savingTemplate || submitting}>
+              {savingTemplate ? <div className="spinner border-0" style={{width: '16px', height: '16px'}}></div> : <Save size={18} />}
+              <span>Save as Template</span>
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting || savingTemplate}>
+              {submitting ? <div className="spinner border-0" style={{width: '16px', height: '16px'}}></div> : <Send size={18} />}
               <span>Submit Requisition</span>
             </button>
           </div>
