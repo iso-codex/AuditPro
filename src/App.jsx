@@ -28,6 +28,13 @@ import CatalogManagement from './pages/Admin/CatalogManagement';
 import GlobalRequisitions from './pages/Admin/GlobalRequisitions';
 import SupplierManagement from './pages/Admin/SupplierManagement';
 
+// New Roles Pages
+import ProfileSettings from './pages/ProfileSettings';
+import GlobalRequisitionsManager from './pages/Manager/GlobalRequisitionsManager';
+import RequisitionInboxStore from './pages/Store/RequisitionInboxStore';
+import DepartmentInventory from './pages/DepartmentStaff/DepartmentInventory';
+import SalesEntry from './pages/MIS/SalesEntry';
+
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -84,7 +91,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Admin Routes */}
-      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/catalog" element={<CatalogManagement />} />
         <Route path="/admin/requisitions" element={<GlobalRequisitions />} />
@@ -102,6 +109,31 @@ const AppRoutes = () => {
         <Route path="/auditor/overview" element={<AuditorOverview />} />
         <Route path="/auditor/logs" element={<AuditLog />} />
         <Route path="/auditor/discrepancies" element={<DiscrepancyReport />} />
+      </Route>
+
+      {/* New Manager Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
+        <Route path="/manager-role/requisitions" element={<GlobalRequisitionsManager />} />
+      </Route>
+
+      {/* New Store Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['store']} />}>
+        <Route path="/store-role/inbox" element={<RequisitionInboxStore />} />
+      </Route>
+
+      {/* New MIS Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['mis']} />}>
+        <Route path="/mis/sales" element={<SalesEntry />} />
+      </Route>
+
+      {/* Profile Settings (All authenticated users) */}
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis']} />}>
+        <Route path="/profile" element={<ProfileSettings />} />
+      </Route>
+
+      {/* Department Staff Extended */}
+      <Route element={<ProtectedRoute allowedRoles={['department_staff']} />}>
+        <Route path="/staff/inventory" element={<DepartmentInventory />} />
       </Route>
     </Routes>
   );

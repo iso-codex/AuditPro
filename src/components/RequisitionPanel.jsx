@@ -38,7 +38,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
       // Update requisition status
       await supabase
         .from('requisitions')
-        .update({ status: 'Approved' })
+        .update({ status: 'Pending_Store' })
         .eq('id', requisition.id);
 
       // Audit Log
@@ -245,7 +245,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
                   </td>
                   <td>{item.quantity_requested}</td>
                   <td>
-                    {requisition.status === 'Pending' ? (
+                    {['Pending', 'Pending_Manager', 'Pending_Store'].includes(requisition.status) ? (
                       <input 
                         type="number"
                         className="form-input"
@@ -266,16 +266,16 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         </div>
 
         <div className="mt-auto border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
-          {requisition.status === 'Pending' && !isRejecting && (
+          {['Pending', 'Pending_Manager'].includes(requisition.status) && !isRejecting && (
             <div className="flex gap-3 justify-end">
               <button className="btn btn-danger" onClick={() => setIsRejecting(true)}>Reject</button>
               <button className="btn btn-primary" onClick={processApprove} disabled={submitting}>
-                <Check size={18} /> Approve
+                <Check size={18} /> Approve to Store
               </button>
             </div>
           )}
 
-          {requisition.status === 'Pending' && isRejecting && (
+          {['Pending', 'Pending_Manager'].includes(requisition.status) && isRejecting && (
             <div className="flex flex-col gap-3">
               <textarea 
                 className="form-input" 
@@ -292,7 +292,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
             </div>
           )}
 
-          {requisition.status === 'Approved' && (
+          {['Approved', 'Pending_Store'].includes(requisition.status) && (
             <div className="flex justify-end gap-3">
               <button className="btn btn-primary" onClick={processDispatch} disabled={submitting}>
                 <Send size={18} /> Mark as Dispatched

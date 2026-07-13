@@ -152,7 +152,7 @@ const RaiseRequisition = () => {
         requested_by: profile.id,
         date_requested: new Date().toISOString().split('T')[0],
         notes: notes,
-        status: 'Pending'
+        status: 'Pending_Manager'
       };
       
       const { error: reqError } = await supabase

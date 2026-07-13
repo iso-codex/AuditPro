@@ -16,7 +16,9 @@ import {
   Database,
   Globe,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  Settings,
+  DollarSign
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -50,12 +52,26 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         return [
           { to: '/staff/raise', icon: <FilePlus size={20} />, label: 'Raise Requisition' },
           { to: '/staff/my-requisitions', icon: <List size={20} />, label: 'My Requisitions' },
+          { to: '/staff/inventory', icon: <Layers size={20} />, label: 'Dept Inventory' },
         ];
       case 'auditor':
         return [
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
+        ];
+      case 'manager':
+        return [
+          { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
+          { to: '/manager-role/requisitions', icon: <Globe size={20} />, label: 'Approve Requisitions' },
+        ];
+      case 'store':
+        return [
+          { to: '/store-role/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
+        ];
+      case 'mis':
+        return [
+          { to: '/mis/sales', icon: <DollarSign size={20} />, label: 'Sales Entry' },
         ];
       case 'admin':
         return [
@@ -75,7 +91,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     }
   };
 
-  const links = getLinks();
+  const links = [...getLinks(), { to: '/profile', icon: <Settings size={20} />, label: 'Profile Settings' }];
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>

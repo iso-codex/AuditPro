@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { RefreshCw, Search } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import StatusBadge from '../../components/StatusBadge';
 import RequisitionPanel from '../../components/RequisitionPanel';
 
-const GlobalRequisitions = () => {
+const RequisitionInboxStore = () => {
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReq, setSelectedReq] = useState(null);
-  const [filter, setFilter] = useState('All');
 
   const fetchRequisitions = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // Store only sees Pending_Store requisitions
+      const { data, error } = await supabase
         .from('requisitions')
         .select(`
           *,
@@ -23,17 +23,13 @@ const GlobalRequisitions = () => {
             items (name, unit, quantity_in_store, low_stock_threshold)
           )
         `)
+        .eq('status', 'Pending_Store')
         .order('created_at', { ascending: false });
 
-      if (filter !== 'All') {
-        query = query.eq('status', filter);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       setRequisitions(data || []);
     } catch (error) {
-      console.error('Error fetching global requisitions:', error);
+      console.error('Error fetching global requisitions for store:', error);
     } finally {
       setLoading(false);
     }
@@ -41,31 +37,16 @@ const GlobalRequisitions = () => {
 
   useEffect(() => {
     fetchRequisitions();
-  }, [filter]);
+  }, []);
 
   return (
     <div className="admin-page relative h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2>Global Requisitions</h2>
-          <p>View and override all requisitions across all departments.</p>
+          <h2>Dispatch Requisitions (Store)</h2>
+          <p>Review and dispatch requisitions approved by the Manager.</p>
         </div>
         <div className="flex gap-4">
-          <select 
-            className="form-select"
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Pending_Manager">Pending (Manager)</option>
-            <option value="Pending_Store">Pending (Store)</option>
-            <option value="Dispatched">Dispatched</option>
-            <option value="Received">Received</option>
-            <option value="Partially Received">Partially Received</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Pending">Legacy: Pending</option>
-            <option value="Approved">Legacy: Approved</option>
-          </select>
           <button className="btn btn-outline" onClick={fetchRequisitions} disabled={loading}>
             <RefreshCw size={18} className={loading ? 'spinner border-0' : ''} />
             <span>Refresh</span>
@@ -95,7 +76,7 @@ const GlobalRequisitions = () => {
             ) : requisitions.length === 0 ? (
               <tr>
                 <td colSpan="6" className="text-center py-8 text-gray-500">
-                  No requisitions found.
+                  No approved requisitions ready for dispatch.
                 </td>
               </tr>
             ) : requisitions.map(req => (
@@ -127,4 +108,4 @@ const GlobalRequisitions = () => {
   );
 };
 
-export default GlobalRequisitions;
+export default RequisitionInboxStore;
