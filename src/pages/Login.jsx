@@ -91,15 +91,7 @@ const Login = () => {
           </div>
         )}
 
-        {user && !profile && !isSubmitting && (
-          <div className="login-error" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning-color)', display: 'block', wordBreak: 'break-all', textAlign: 'left' }}>
-            <AlertCircle size={18} />
-            <span>Login successful, but no matching profile found in the database.</span>
-            <br /><br />
-            <strong>Profile Fetch Error:</strong>
-            <pre style={{ fontSize: '11px', marginTop: '4px' }}>{profileError || "No error reported (0 rows found)"}</pre>
-          </div>
-        )}
+
         
         {user && profile && !['store_manager', 'department_staff', 'auditor', 'admin', 'manager', 'store', 'mis'].includes(profile.role) && (
           <div className="login-error">
