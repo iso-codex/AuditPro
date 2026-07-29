@@ -46,7 +46,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
-          { to: '/manager/dispatch', icon: <History size={20} />, label: 'Dispatch History' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
         ];
       case 'department_staff':
         return [
@@ -64,6 +64,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         return [
           { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
           { to: '/manager-role/requisitions', icon: <Globe size={20} />, label: 'Approve Requisitions' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
         ];
       case 'store':
         return [
@@ -81,10 +82,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/admin/suppliers', icon: <Truck size={20} />, label: 'Supplier Management' },
           // Store Manager capabilities
           { to: '/manager/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
-          { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
-          { to: '/manager/dispatch', icon: <History size={20} />, label: 'Dispatch History' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
         ];
       default:
         return [];

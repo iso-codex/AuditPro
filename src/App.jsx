@@ -31,6 +31,7 @@ import SupplierManagement from './pages/Admin/SupplierManagement';
 // New Roles Pages
 import ProfileSettings from './pages/ProfileSettings';
 import GlobalRequisitionsManager from './pages/Manager/GlobalRequisitionsManager';
+import GoodsHistory from './pages/Manager/GoodsHistory';
 import RequisitionInboxStore from './pages/Store/RequisitionInboxStore';
 import DepartmentInventory from './pages/DepartmentStaff/DepartmentInventory';
 import SalesEntry from './pages/MIS/SalesEntry';
@@ -114,6 +115,11 @@ const AppRoutes = () => {
       {/* New Manager Routes */}
       <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
         <Route path="/manager-role/requisitions" element={<GlobalRequisitionsManager />} />
+      </Route>
+
+      {/* Shared History Route */}
+      <Route element={<ProtectedRoute allowedRoles={['manager', 'store_manager', 'admin']} />}>
+        <Route path="/shared/history" element={<GoodsHistory />} />
       </Route>
 
       {/* New Store Routes */}

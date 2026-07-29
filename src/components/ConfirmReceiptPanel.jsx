@@ -136,7 +136,7 @@ const ConfirmReceiptPanel = ({ requisition, onClose, onUpdate }) => {
         </div>
 
         <div className="bg-blue-50 p-4 rounded mb-6 text-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-color)' }}>
-          Please confirm the quantities you actually received. Log any discrepancies below.
+          Please review the dispatched quantities and confirm receipt.
         </div>
 
         <div className="table-container mb-6 flex-1">
@@ -144,47 +144,16 @@ const ConfirmReceiptPanel = ({ requisition, onClose, onUpdate }) => {
             <thead>
               <tr>
                 <th>Item</th>
-                <th>Dispatched</th>
-                <th>Received</th>
-                <th>Notes</th>
+                <th>Dispatched & Received</th>
               </tr>
             </thead>
             <tbody>
-              {items.map(item => {
-                const isDiscrepant = parseFloat(item.quantity_confirmed) !== parseFloat(item.quantity_dispatched);
-                return (
-                  <tr key={item.id}>
-                    <td className="font-medium">{item.items?.name}</td>
-                    <td>{item.quantity_dispatched}</td>
-                    <td>
-                      <input 
-                        type="number"
-                        className={`form-input ${isDiscrepant ? 'border-red-500' : ''}`}
-                        style={{ width: '80px', padding: '0.25rem' }}
-                        value={item.quantity_confirmed}
-                        onChange={(e) => handleUpdate(item.id, 'quantity_confirmed', e.target.value)}
-                        min="0"
-                        step="0.1"
-                      />
-                    </td>
-                    <td>
-                      {isDiscrepant ? (
-                        <input 
-                          type="text"
-                          className="form-input"
-                          style={{ padding: '0.25rem' }}
-                          placeholder="Reason..."
-                          value={item.discrepancy_notes}
-                          onChange={(e) => handleUpdate(item.id, 'discrepancy_notes', e.target.value)}
-                          required
-                        />
-                      ) : (
-                        <span className="text-gray-400 text-xs">Ok</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map(item => (
+                <tr key={item.id}>
+                  <td className="font-medium">{item.items?.name}</td>
+                  <td className="font-semibold">{item.quantity_dispatched}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

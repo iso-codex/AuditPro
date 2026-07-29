@@ -20,7 +20,7 @@ const MyRequisitions = () => {
           *,
           profiles:requested_by (full_name),
           requisition_items (
-            id, quantity_requested, quantity_approved, quantity_dispatched, quantity_confirmed, discrepancy_notes,
+            id, item_id, quantity_requested, quantity_approved, quantity_dispatched, quantity_confirmed, discrepancy_notes,
             items (name, unit)
           )
         `)

@@ -38,7 +38,11 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
       // Update requisition status
       await supabase
         .from('requisitions')
-        .update({ status: 'Pending_Store' })
+        .update({ 
+          status: 'Pending_Store',
+          approved_by: profile.id,
+          approver_name: profile.full_name
+        })
         .eq('id', requisition.id);
 
       // Audit Log
@@ -126,6 +130,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
           })
           .eq('id', item.id);
 
+
         if (newStock <= item.items.low_stock_threshold) {
           lowStockAlerts.push(item.items.name);
         }
@@ -194,27 +199,33 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
           </button>
         </div>
 
-        <div className="mb-8 grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 rounded-xl border" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Department</span>
-            <span className="font-medium text-sm">{requisition.department}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.25rem', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-color)', boxShadow: 'var(--shadow-sm)', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Department</span>
+            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{requisition.department}</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Requested By</span>
-            <span className="font-medium text-sm">{requisition.profiles?.full_name || 'Unknown'}</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Requested By</span>
+            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{requisition.profiles?.full_name || 'Unknown'}</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Date</span>
-            <span className="font-medium text-sm">{requisition.date_requested}</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Date</span>
+            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{requisition.date_requested}</span>
           </div>
-          <div className="flex flex-col items-start">
-            <span className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Status</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Status</span>
             <StatusBadge status={requisition.status} />
           </div>
+          {requisition.approver_name && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Approved By</span>
+              <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{requisition.approver_name}</span>
+            </div>
+          )}
           {requisition.rejection_reason && (
-            <div className="col-span-2 sm:col-span-4 mt-2 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
-              <span className="text-xs uppercase tracking-wider font-semibold mb-1 text-red-500 block">Rejection Reason</span>
-              <span className="font-medium text-sm text-red-600">{requisition.rejection_reason}</span>
+            <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem', color: '#ef4444', display: 'block' }}>Rejection Reason</span>
+              <span style={{ fontWeight: 500, fontSize: '0.875rem', color: '#dc2626' }}>{requisition.rejection_reason}</span>
             </div>
           )}
         </div>
@@ -232,8 +243,8 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
               <tr>
                 <th>Item</th>
                 <th>Stock</th>
-                <th>Req</th>
-                <th>Approve</th>
+                <th>Original Req</th>
+                <th>Approved Qty</th>
               </tr>
             </thead>
             <tbody>
@@ -245,7 +256,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
                   </td>
                   <td>{item.quantity_requested}</td>
                   <td>
-                    {['Pending', 'Pending_Manager', 'Pending_Store'].includes(requisition.status) ? (
+                    {['manager', 'admin'].includes(profile?.role) && ['Pending', 'Pending_Manager'].includes(requisition.status) ? (
                       <input 
                         type="number"
                         className="form-input"
@@ -256,7 +267,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
                         max={item.items?.quantity_in_store}
                       />
                     ) : (
-                      <span>{item.quantity_approved}</span>
+                      <span>{item.quantity_approved !== null ? item.quantity_approved : item.quantity_requested}</span>
                     )}
                   </td>
                 </tr>
@@ -266,7 +277,8 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         </div>
 
         <div className="mt-auto border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
-          {['Pending', 'Pending_Manager'].includes(requisition.status) && !isRejecting && (
+          {/* Manager Action Buttons */}
+          {['manager', 'admin'].includes(profile?.role) && ['Pending', 'Pending_Manager'].includes(requisition.status) && !isRejecting && (
             <div className="flex gap-3 justify-end">
               <button className="btn btn-danger" onClick={() => setIsRejecting(true)}>Reject</button>
               <button className="btn btn-primary" onClick={processApprove} disabled={submitting}>
@@ -275,7 +287,7 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
             </div>
           )}
 
-          {['Pending', 'Pending_Manager'].includes(requisition.status) && isRejecting && (
+          {['manager', 'admin'].includes(profile?.role) && ['Pending', 'Pending_Manager'].includes(requisition.status) && isRejecting && (
             <div className="flex flex-col gap-3">
               <textarea 
                 className="form-input" 
@@ -292,10 +304,24 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
             </div>
           )}
 
-          {['Approved', 'Pending_Store'].includes(requisition.status) && (
+          {/* Store Action Button */}
+          {['store_manager', 'store', 'admin'].includes(profile?.role) && (
             <div className="flex justify-end gap-3">
-              <button className="btn btn-primary" onClick={processDispatch} disabled={submitting}>
-                <Send size={18} /> Mark as Dispatched
+              <button 
+                className="btn"
+                style={{
+                  backgroundColor: ['Approved', 'Pending_Store'].includes(requisition.status) ? 'var(--success-color)' : 'var(--primary-color)',
+                  opacity: ['Approved', 'Pending_Store'].includes(requisition.status) ? 1 : 0.5,
+                  cursor: ['Approved', 'Pending_Store'].includes(requisition.status) ? 'pointer' : 'not-allowed',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onClick={processDispatch} 
+                disabled={submitting || !['Approved', 'Pending_Store'].includes(requisition.status)}
+              >
+                <Send size={18} /> Approve & Dispatch
               </button>
             </div>
           )}
