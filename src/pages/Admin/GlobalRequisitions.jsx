@@ -19,7 +19,7 @@ const GlobalRequisitions = () => {
         .from('requisitions')
         .select(`
           *,
-          profiles (full_name),
+          profiles!requested_by(full_name),
           requisition_items (
             id, item_id, quantity_requested, quantity_approved, quantity_dispatched, quantity_confirmed, discrepancy_notes,
             items (name, unit, quantity_in_store, low_stock_threshold)
