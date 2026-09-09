@@ -109,6 +109,8 @@ const AppRoutes = () => {
       {/* Auditor Routes */}
       <Route element={<ProtectedRoute allowedRoles={['auditor']} />}>
         <Route path="/auditor/overview" element={<AuditorOverview />} />
+        <Route path="/auditor/requisitions" element={<GlobalRequisitions />} />
+        <Route path="/auditor/stock" element={<StockLevels />} />
         <Route path="/auditor/logs" element={<AuditLog />} />
         <Route path="/auditor/discrepancies" element={<DiscrepancyReport />} />
         <Route path="/auditor/reports" element={<ReportGeneration />} />
@@ -119,8 +121,8 @@ const AppRoutes = () => {
         <Route path="/manager-role/requisitions" element={<GlobalRequisitionsManager />} />
       </Route>
 
-      {/* Shared History Route */}
-      <Route element={<ProtectedRoute allowedRoles={['manager', 'store_manager', 'admin']} />}>
+      {/* Shared Routes (Store & Store Manager) */}
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'manager', 'auditor']} />}>
         <Route path="/shared/history" element={<GoodsHistory />} />
       </Route>
 

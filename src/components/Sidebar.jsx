@@ -58,6 +58,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       case 'auditor':
         return [
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
+          { to: '/auditor/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
+          { to: '/auditor/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
           { to: '/auditor/reports', icon: <Download size={20} />, label: 'Report Generation' },
