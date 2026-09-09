@@ -23,7 +23,7 @@ const Overview = () => {
         const { data: receipts } = await supabase.from('goods_receipts').select('quantity_received');
         const totalReceived = receipts?.reduce((acc, curr) => acc + parseFloat(curr.quantity_received), 0) || 0;
 
-        const { count: pendingReqs } = await supabase.from('requisitions').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
+        const { count: pendingReqs } = await supabase.from('requisitions').select('*', { count: 'exact', head: true }).in('status', ['Pending', 'Pending_Manager', 'Pending_Store']);
         
         const { data: reqItems } = await supabase.from('requisition_items').select('quantity_dispatched, quantity_confirmed').not('quantity_confirmed', 'is', null);
         const discrepancies = reqItems?.filter(i => parseFloat(i.quantity_dispatched) !== parseFloat(i.quantity_confirmed)).length || 0;
