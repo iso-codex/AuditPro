@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const activeKey = serviceRoleKey || anonKey;
 
 if (!serviceRoleKey) {
-  console.error(
+  console.warn(
     '[supabaseAdmin] VITE_SUPABASE_SERVICE_ROLE_KEY is not set. ' +
-    'Admin operations (create user, reset password) will fail. ' +
-    'Add it to your .env.local file and restart the dev server.'
+    'Falling back to anon key — admin operations like Create User and Reset Password will fail. ' +
+    'Add the service role key to your .env.local and restart the dev server.'
   );
 }
 
@@ -15,7 +17,7 @@ if (!serviceRoleKey) {
 // Use a secure server-side API route instead.
 export const supabaseAdmin = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  serviceRoleKey,
+  activeKey,
   {
     auth: {
       autoRefreshToken: false,
@@ -24,3 +26,4 @@ export const supabaseAdmin = createClient(
     }
   }
 );
+
