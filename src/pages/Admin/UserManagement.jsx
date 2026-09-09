@@ -76,32 +76,45 @@ const UserManagement = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setIsCreating(true);
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
     try {
-      // 1. Create auth user via admin API
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: newEmail,
-        password: newPassword,
-        email_confirm: true,
-        user_metadata: { full_name: newFullName }
+      // 1. Create auth user via direct REST call to Supabase Admin API
+      const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+        },
+        body: JSON.stringify({
+          email: newEmail,
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: { full_name: newFullName }
+        })
       });
 
-      if (error) throw error;
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.message || createData.msg || 'Failed to create auth user');
 
-      // 2. Profile is usually auto-created via Postgres trigger. We update it.
-      if (data.user) {
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            full_name: newFullName,
-            role: newRole,
-            department: newDepartment === 'None' ? null : newDepartment
-          });
-          
-        if (profileError) {
-          console.error("Profile update error:", profileError);
-          throw new Error('User created in Auth, but Profile failed: ' + profileError.message);
-        }
+      const newUserId = createData.id;
+
+      // 2. Upsert profile (the Postgres trigger may auto-create it, we ensure role/dept are set)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: newUserId,
+          full_name: newFullName,
+          role: newRole,
+          department: newDepartment === 'None' ? null : newDepartment
+        });
+
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw new Error('User created in Auth, but Profile failed: ' + profileError.message);
       }
 
       alert('User created successfully!');
@@ -128,15 +141,25 @@ const UserManagement = () => {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!selectedUser) return;
-    
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
     setIsResetting(true);
     try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(
-        selectedUser.id,
-        { password: resetPasswordVal }
-      );
+      // Direct REST call to Supabase Admin API to update user password
+      const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+        },
+        body: JSON.stringify({ password: resetPasswordVal })
+      });
 
-      if (error) throw error;
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.message || resData.msg || 'Failed to reset password');
 
       alert('Password reset successfully!');
       setShowResetModal(false);
