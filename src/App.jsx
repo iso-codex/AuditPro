@@ -21,6 +21,7 @@ import MyRequisitions from './pages/DepartmentStaff/MyRequisitions';
 import AuditorOverview from './pages/Auditor/Overview';
 import AuditLog from './pages/Auditor/AuditLog';
 import DiscrepancyReport from './pages/Auditor/DiscrepancyReport';
+import ReportGeneration from './pages/Auditor/ReportGeneration';
 
 // Admin Pages
 import UserManagement from './pages/Admin/UserManagement';
@@ -110,6 +111,7 @@ const AppRoutes = () => {
         <Route path="/auditor/overview" element={<AuditorOverview />} />
         <Route path="/auditor/logs" element={<AuditLog />} />
         <Route path="/auditor/discrepancies" element={<DiscrepancyReport />} />
+        <Route path="/auditor/reports" element={<ReportGeneration />} />
       </Route>
 
       {/* New Manager Routes */}

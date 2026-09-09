@@ -18,7 +18,8 @@ import {
   Truck,
   ShoppingCart,
   Settings,
-  DollarSign
+  DollarSign,
+  Download
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -59,6 +60,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
+          { to: '/auditor/reports', icon: <Download size={20} />, label: 'Report Generation' },
         ];
       case 'manager':
         return [
