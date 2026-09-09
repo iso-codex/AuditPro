@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { RefreshCw, Search } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import StatusBadge from '../../components/StatusBadge';
 import RequisitionPanel from '../../components/RequisitionPanel';
 
 const GlobalRequisitions = () => {
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedReq, setSelectedReq] = useState(null);
   const [filter, setFilter] = useState('All');
 
   const fetchRequisitions = async () => {
     setLoading(true);
+    setError(null);
     try {
       let query = supabase
         .from('requisitions')
@@ -32,8 +34,9 @@ const GlobalRequisitions = () => {
       const { data, error } = await query;
       if (error) throw error;
       setRequisitions(data || []);
-    } catch (error) {
-      console.error('Error fetching global requisitions:', error);
+    } catch (err) {
+      console.error('Error fetching global requisitions:', err);
+      setError(err.message || 'Failed to load requisitions.');
     } finally {
       setLoading(false);
     }
@@ -73,6 +76,16 @@ const GlobalRequisitions = () => {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 p-4 rounded-xl flex items-start gap-3" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger-color)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <AlertCircle size={20} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Failed to load requisitions</p>
+            <p className="text-sm mt-1 opacity-80">{error}</p>
+          </div>
+        </div>
+      )}
+
       <div className="table-container flex-1">
         <table>
           <thead>
@@ -86,16 +99,22 @@ const GlobalRequisitions = () => {
             </tr>
           </thead>
           <tbody>
-            {loading && requisitions.length === 0 ? (
+            {loading ? (
               <tr>
                 <td colSpan="6" className="text-center py-8">
                   <div className="spinner mx-auto"></div>
                 </td>
               </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan="6" className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+                  Could not load data. See error above.
+                </td>
+              </tr>
             ) : requisitions.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center py-8 text-gray-500">
-                  No requisitions found.
+                <td colSpan="6" className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+                  No requisitions found{filter !== 'All' ? ` with status "${filter}"` : ''}.
                 </td>
               </tr>
             ) : requisitions.map(req => (
