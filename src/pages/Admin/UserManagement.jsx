@@ -103,7 +103,7 @@ const UserManagement = () => {
       const newUserId = createData.id;
 
       // 2. Upsert profile (the Postgres trigger may auto-create it, we ensure role/dept are set)
-      const { error: profileError } = await supabase
+      const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .upsert({
           id: newUserId,
