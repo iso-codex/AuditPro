@@ -18,9 +18,9 @@ const REPORT_TYPES = [
 ];
 
 const today = () => new Date().toISOString().split('T')[0];
-const monthAgo = () => {
+const yearAgo = () => {
   const d = new Date();
-  d.setMonth(d.getMonth() - 1);
+  d.setFullYear(d.getFullYear() - 1);
   return d.toISOString().split('T')[0];
 };
 
@@ -129,7 +129,7 @@ const ReportGeneration = () => {
   const [exporting, setExporting] = useState(null);
 
   const [filters, setFilters] = useState({
-    dateFrom: monthAgo(),
+    dateFrom: yearAgo(),
     dateTo: today(),
     department: 'All',
     staffId: '',
@@ -155,7 +155,7 @@ const ReportGeneration = () => {
       if (reportType === 'movements') {
         let q = supabase
           .from('audit_log')
-          .select('*, profiles!actor_id(full_name)')
+          .select('*, profiles(full_name)')
           .gte('created_at', filters.dateFrom + 'T00:00:00')
           .lte('created_at', filters.dateTo + 'T23:59:59')
           .order('created_at', { ascending: false });
@@ -301,7 +301,7 @@ const ReportGeneration = () => {
                   setFilter('dateTo', today());
                 }
               },
-              { label: 'Last 30 Days', fn: () => { setFilter('dateFrom', monthAgo()); setFilter('dateTo', today()); } },
+              { label: 'Last 12 Months', fn: () => { setFilter('dateFrom', yearAgo()); setFilter('dateTo', today()); } },
             ].map(p => (
               <button key={p.label} className="preset-btn" onClick={p.fn}>{p.label}</button>
             ))}
