@@ -57,7 +57,9 @@ body {
 
 .app-container {
   display: flex;
-  min-height: 100vh;
+  background-color: var(--bg-color);
+  height: 100vh;
+  overflow: hidden;
   position: relative;
 }
 
