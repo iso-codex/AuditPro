@@ -37,6 +37,13 @@ import RequisitionInboxStore from './pages/Store/RequisitionInboxStore';
 import DepartmentInventory from './pages/DepartmentStaff/DepartmentInventory';
 import SalesEntry from './pages/MIS/SalesEntry';
 
+// New Feature Pages
+import WeeklyStockCount from './pages/Shared/WeeklyStockCount';
+import DepartmentStock from './pages/Manager/DepartmentStock';
+import SalesReconciliation from './pages/MIS/SalesReconciliation';
+import ThresholdManagement from './pages/Manager/ThresholdManagement';
+import ProcurementWorkspace from './pages/Procurement/ProcurementWorkspace';
+
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -98,6 +105,7 @@ const AppRoutes = () => {
         <Route path="/admin/catalog" element={<CatalogManagement />} />
         <Route path="/admin/requisitions" element={<GlobalRequisitions />} />
         <Route path="/admin/suppliers" element={<SupplierManagement />} />
+        <Route path="/admin/thresholds" element={<ThresholdManagement />} />
       </Route>
 
       {/* Department Staff Routes */}
@@ -114,11 +122,16 @@ const AppRoutes = () => {
         <Route path="/auditor/logs" element={<AuditLog />} />
         <Route path="/auditor/discrepancies" element={<DiscrepancyReport />} />
         <Route path="/auditor/reports" element={<ReportGeneration />} />
+        <Route path="/auditor/counts" element={<WeeklyStockCount />} />
+        <Route path="/auditor/thresholds" element={<ThresholdManagement />} />
       </Route>
 
       {/* New Manager Routes */}
       <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
         <Route path="/manager-role/requisitions" element={<GlobalRequisitionsManager />} />
+        <Route path="/manager-role/counts" element={<WeeklyStockCount />} />
+        <Route path="/manager-role/stock" element={<DepartmentStock />} />
+        <Route path="/manager-role/thresholds" element={<ThresholdManagement />} />
       </Route>
 
       {/* Shared Routes (Store & Store Manager) */}
@@ -129,15 +142,26 @@ const AppRoutes = () => {
       {/* New Store Routes */}
       <Route element={<ProtectedRoute allowedRoles={['store']} />}>
         <Route path="/store-role/inbox" element={<RequisitionInboxStore />} />
+        <Route path="/store-role/count" element={<WeeklyStockCount />} />
+        <Route path="/store-role/sales" element={<SalesEntry />} />
+        <Route path="/store-role/reconciliation" element={<SalesReconciliation />} />
       </Route>
 
       {/* New MIS Routes */}
       <Route element={<ProtectedRoute allowedRoles={['mis']} />}>
         <Route path="/mis/sales" element={<SalesEntry />} />
+        <Route path="/mis/reconciliation" element={<SalesReconciliation />} />
+      </Route>
+
+      {/* Procurement Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['procurement', 'admin']} />}>
+        <Route path="/procurement/workspace" element={<ProcurementWorkspace />} />
+        <Route path="/procurement/suppliers" element={<SupplierManagement />} />
+        <Route path="/procurement/purchase-orders" element={<PurchaseOrders />} />
       </Route>
 
       {/* Profile Settings (All authenticated users) */}
-      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement']} />}>
         <Route path="/profile" element={<ProfileSettings />} />
       </Route>
 

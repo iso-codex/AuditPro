@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { supabaseAdmin } from '../../lib/supabaseAdminClient';
 import { RefreshCw, Save, UserPlus, KeyRound, X } from 'lucide-react';
+import { formatRole } from '../../utils/formatters';
 
-const ROLES = ['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis'];
-const DEPARTMENTS = ['Kitchen', 'Bar', 'Byte', 'HQ', 'Maintenance', 'None'];
+const ROLES = ['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement'];
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -16,12 +16,14 @@ const UserManagement = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  const [departments, setDepartments] = useState([]);
+
   // Create User Form
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newFullName, setNewFullName] = useState('');
   const [newRole, setNewRole] = useState('');
-  const [newDepartment, setNewDepartment] = useState('None');
+  const [newDepartmentId, setNewDepartmentId] = useState('None');
   const [isCreating, setIsCreating] = useState(false);
 
   // Reset Password Form
@@ -48,7 +50,13 @@ const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    const { data } = await supabase.from('departments').select('*').order('name');
+    setDepartments(data || []);
+  };
 
   const handleUpdateUser = async (id, field, value) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, [field]: value, isDirty: true } : u));
@@ -59,7 +67,7 @@ const UserManagement = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ role: user.role, department: user.department === 'None' ? null : user.department })
+        .update({ role: user.role, department_id: user.department_id === 'None' ? null : user.department_id })
         .eq('id', user.id);
         
       if (error) throw error;
@@ -109,7 +117,7 @@ const UserManagement = () => {
           id: newUserId,
           full_name: newFullName,
           role: newRole,
-          department: newDepartment === 'None' ? null : newDepartment
+          department_id: newDepartmentId === 'None' ? null : newDepartmentId
         });
 
       if (profileError) {
@@ -123,7 +131,7 @@ const UserManagement = () => {
       setNewPassword('');
       setNewFullName('');
       setNewRole('');
-      setNewDepartment('None');
+      setNewDepartmentId('None');
       fetchUsers();
     } catch (err) {
       alert('Failed to create user: ' + err.message);
@@ -220,7 +228,7 @@ const UserManagement = () => {
                   >
                     <option value="" disabled>Select Role</option>
                     {ROLES.map(r => (
-                      <option key={r} value={r}>{r.replace('_', ' ')}</option>
+                      <option key={r} value={r}>{formatRole(r)}</option>
                     ))}
                   </select>
                 </td>
@@ -228,11 +236,12 @@ const UserManagement = () => {
                   <select 
                     className="form-select" 
                     style={{ padding: '0.25rem', width: '150px' }}
-                    value={user.department || 'None'}
-                    onChange={(e) => handleUpdateUser(user.id, 'department', e.target.value)}
+                    value={user.department_id || 'None'}
+                    onChange={(e) => handleUpdateUser(user.id, 'department_id', e.target.value)}
                   >
-                    {DEPARTMENTS.map(d => (
-                      <option key={d} value={d}>{d}</option>
+                    <option value="None">None</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </td>
@@ -295,15 +304,16 @@ const UserManagement = () => {
                 <select className="form-select w-full" required value={newRole} onChange={e => setNewRole(e.target.value)}>
                   <option value="" disabled>Select Role...</option>
                   {ROLES.map(r => (
-                    <option key={r} value={r}>{r.replace('_', ' ')}</option>
+                    <option key={r} value={r}>{formatRole(r)}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="form-label">Department</label>
-                <select className="form-select w-full" value={newDepartment} onChange={e => setNewDepartment(e.target.value)}>
-                  {DEPARTMENTS.map(d => (
-                    <option key={d} value={d}>{d}</option>
+                <select className="form-select w-full" value={newDepartmentId} onChange={e => setNewDepartmentId(e.target.value)}>
+                  <option value="None">None</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>

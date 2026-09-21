@@ -21,6 +21,7 @@ import {
   DollarSign,
   Download
 } from 'lucide-react';
+import { formatRole } from '../utils/formatters';
 import './Sidebar.css';
 
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
@@ -41,9 +42,15 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     if (!profile) return [];
     
     switch (profile.role) {
+      case 'procurement':
+        return [
+          { to: '/procurement/workspace', icon: <LayoutDashboard size={20} />, label: 'Workspace' },
+          { to: '/procurement/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
+          { to: '/procurement/suppliers', icon: <Truck size={20} />, label: 'Suppliers' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Price History' },
+        ];
       case 'store_manager':
         return [
-          { to: '/manager/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
           { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
@@ -60,6 +67,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
           { to: '/auditor/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
           { to: '/auditor/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
+          { to: '/auditor/counts', icon: <List size={20} />, label: 'Weekly Counts' },
+          { to: '/auditor/thresholds', icon: <ShieldAlert size={20} />, label: 'Thresholds' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
@@ -69,15 +78,22 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         return [
           { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
           { to: '/manager-role/requisitions', icon: <Globe size={20} />, label: 'Approve Requisitions' },
+          { to: '/manager-role/counts', icon: <List size={20} />, label: 'Weekly Stock Counts' },
+          { to: '/manager-role/stock', icon: <Layers size={20} />, label: 'Department Stock' },
+          { to: '/manager-role/thresholds', icon: <ShieldAlert size={20} />, label: 'Thresholds' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
         ];
       case 'store':
         return [
           { to: '/store-role/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
+          { to: '/store-role/count', icon: <List size={20} />, label: 'Weekly Stock Count' },
+          { to: '/store-role/sales', icon: <DollarSign size={20} />, label: 'Sales Entry' },
+          { to: '/store-role/reconciliation', icon: <FileText size={20} />, label: 'Sales vs Usage' },
         ];
       case 'mis':
         return [
           { to: '/mis/sales', icon: <DollarSign size={20} />, label: 'Sales Entry' },
+          { to: '/mis/reconciliation', icon: <FileText size={20} />, label: 'Sales vs Usage' },
         ];
       case 'admin':
         return [
@@ -85,8 +101,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/admin/catalog', icon: <Database size={20} />, label: 'Catalog Management' },
           { to: '/admin/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
           { to: '/admin/suppliers', icon: <Truck size={20} />, label: 'Supplier Management' },
-          // Store Manager capabilities
-          { to: '/manager/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
+          { to: '/admin/thresholds', icon: <ShieldAlert size={20} />, label: 'Threshold Management' },
+          { to: '/procurement/workspace', icon: <ShoppingCart size={20} />, label: 'Procurement Workspace' },
+          { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
@@ -107,7 +124,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         </div>
         <div className="user-info">
           <p className="user-name">{profile?.full_name}</p>
-          <p className="user-role">{profile?.role?.replace('_', ' ')} {profile?.department ? `• ${profile.department}` : ''}</p>
+          <p className="user-role">{formatRole(profile?.role)} {profile?.department ? `• ${profile.department}` : ''}</p>
         </div>
       </div>
       

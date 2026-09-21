@@ -82,7 +82,7 @@ const PurchaseOrders = () => {
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert([{
-          supplier_id: newPo.supplier_id,
+          supplier_id: newPo.supplier_id === 'MARKET' ? null : newPo.supplier_id,
           ordered_by: profile.id,
           expected_date: newPo.expected_date || null
         }])
@@ -154,6 +154,7 @@ const PurchaseOrders = () => {
                 <label className="form-label">Supplier</label>
                 <select className="form-select" value={newPo.supplier_id} onChange={e => setNewPo({...newPo, supplier_id: e.target.value})} required>
                   <option value="" disabled>Select Supplier...</option>
+                  <option value="MARKET">Market (No Supplier)</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
@@ -215,7 +216,7 @@ const PurchaseOrders = () => {
             ) : pos.map(po => (
               <tr key={po.id}>
                 <td className="font-mono text-sm">{po.id.substring(0,8)}</td>
-                <td className="font-medium">{po.suppliers?.name}</td>
+                <td className="font-medium">{po.suppliers?.name || 'Market'}</td>
                 <td>{po.date_ordered}</td>
                 <td>{po.expected_date || '-'}</td>
                 <td>{po.profiles?.full_name}</td>

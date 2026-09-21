@@ -4,6 +4,7 @@ import {
   FileText, Download, Filter, RefreshCw,
   AlertCircle, FileSpreadsheet, X, Search
 } from 'lucide-react';
+import { formatRole } from '../../utils/formatters';
 import './ReportGeneration.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -15,6 +16,8 @@ const REPORT_TYPES = [
   { id: 'movements', label: 'Goods Movements', description: 'All stock in/out events from the audit trail' },
   { id: 'requisitions', label: 'Requisition Status', description: 'All requisitions with current status & approvals' },
   { id: 'discrepancies', label: 'Discrepancy Report', description: 'Items where dispatched \u2260 confirmed quantity' },
+  { id: 'variances', label: 'Stock Variances', description: 'Variances from weekly stock counts' },
+  { id: 'price_history', label: 'Price History', description: 'Purchase price changes over time' },
 ];
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -116,6 +119,23 @@ const COLUMNS = {
     }},
     { header: 'Notes', accessor: r => r.discrepancy_notes || '-' },
   ],
+  variances: [
+    { header: 'Date', accessor: r => fmtDateShort(r.stock_count_cycles?.end_date) },
+    { header: 'Department', accessor: r => r.stock_count_cycles?.departments?.name || '-' },
+    { header: 'Item', accessor: r => r.items?.name || '-' },
+    { header: 'Expected Qty', accessor: r => r.expected_closing_qty },
+    { header: 'Counted Qty', accessor: r => r.counted_qty },
+    { header: 'Variance Qty', accessor: r => r.variance_qty },
+    { header: 'Variance Value', accessor: r => r.variance_value },
+    { header: 'Reason', accessor: r => r.reason_code || '-' },
+  ],
+  price_history: [
+    { header: 'Date', accessor: r => fmtDateShort(r.created_at) },
+    { header: 'Item', accessor: r => r.items?.name || '-' },
+    { header: 'Supplier', accessor: r => r.suppliers?.name || '-' },
+    { header: 'Quantity', accessor: r => r.quantity },
+    { header: 'Unit Cost (GHS)', accessor: r => parseFloat(r.unit_cost).toFixed(2) },
+  ],
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -207,6 +227,35 @@ const ReportGeneration = () => {
           filtered = filtered.filter(i => i.requisitions?.department === filters.department);
         }
         setRows(filtered);
+
+      } else if (reportType === 'variances') {
+        let q = supabase
+          .from('stock_count_lines')
+          .select('*, stock_count_cycles!inner(end_date, status, departments(name)), items(name)')
+          .gte('stock_count_cycles.end_date', filters.dateFrom)
+          .lte('stock_count_cycles.end_date', filters.dateTo)
+          .eq('stock_count_cycles.status', 'approved');
+        
+        const { data, error } = await q;
+        if (error) throw error;
+        
+        let filtered = data || [];
+        if (filters.department !== 'All') {
+          filtered = filtered.filter(r => r.stock_count_cycles?.departments?.name === filters.department);
+        }
+        setRows(filtered.filter(r => r.variance_qty && Math.abs(r.variance_qty) > 0));
+
+      } else if (reportType === 'price_history') {
+        let q = supabase
+          .from('purchase_price_history')
+          .select('*, items(name), suppliers(name)')
+          .gte('created_at', filters.dateFrom + 'T00:00:00')
+          .lte('created_at', filters.dateTo + 'T23:59:59')
+          .order('created_at', { ascending: false });
+
+        const { data, error } = await q;
+        if (error) throw error;
+        setRows(data || []);
       }
 
       setHasGenerated(true);
@@ -327,7 +376,7 @@ const ReportGeneration = () => {
               }}>
               <option value="">All Staff</option>
               {allStaff.map(s => (
-                <option key={s.id} value={s.id}>{s.full_name} ({s.role?.replace('_', ' ')})</option>
+                <option key={s.id} value={s.id}>{s.full_name} ({formatRole(s.role)})</option>
               ))}
             </select>
           </div>

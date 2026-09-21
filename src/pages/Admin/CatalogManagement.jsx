@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Plus, Edit2, Trash2, Save, X, RefreshCw, ChevronLeft, Package, FolderPlus, ArrowRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, RefreshCw, ChevronLeft, Package, FolderPlus, ArrowRight, Upload, AlertCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import './CatalogManagement.css';
 
 const UNITS = ['kg', 'litres', 'pieces', 'bags', 'cartons', 'boxes'];
@@ -25,6 +26,12 @@ const CatalogManagement = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', unit: 'pieces' });
 
+  // Bulk Upload State
+  const fileInputRef = useRef(null);
+  const [previewData, setPreviewData] = useState([]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -38,7 +45,6 @@ const CatalogManagement = () => {
       }
       
       const fetchedCats = catsRes.data || [];
-      // If the categories table is empty or missing, fallback to unique categories from items
       if (fetchedCats.length === 0) {
         const uniqueCatNames = [...new Set((itemsRes.data || []).map(i => i.category))].filter(Boolean);
         setCategories(uniqueCatNames.map(name => ({ id: name, name })));
@@ -49,7 +55,6 @@ const CatalogManagement = () => {
       setItems(itemsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      // alert('Error fetching data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -65,7 +70,6 @@ const CatalogManagement = () => {
     try {
       const { data, error } = await supabase.from('categories').insert([{ name: newCategoryName.trim() }]).select();
       if (error) {
-        // If they haven't run the migration yet, just add it to local state for demo purposes
         if (error.code === '42P01') {
            const newCat = { id: crypto.randomUUID(), name: newCategoryName.trim() };
            setCategories([...categories, newCat].sort((a, b) => a.name.localeCompare(b.name)));
@@ -145,17 +149,102 @@ const CatalogManagement = () => {
     }
   };
 
-  // Filter items for selected category
+  // --- BULK UPLOAD LOGIC ---
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        
+        // Map data based on expected columns: Category, Name, Unit, Quantity
+        const mappedData = data.map((row, idx) => {
+          const getVal = (keys) => {
+            const key = Object.keys(row).find(k => keys.includes(k.toLowerCase().trim()));
+            return key ? String(row[key]).trim() : '';
+          };
+          
+          return {
+            _rowId: idx + 1,
+            category: getVal(['category', 'cat']),
+            name: getVal(['name', 'item', 'item name', 'product']),
+            unit: getVal(['unit', 'uom', 'measure']) || 'pieces',
+            quantity: parseFloat(getVal(['quantity', 'qty', 'stock'])) || 0
+          };
+        });
+        
+        // Filter out empty rows
+        const validData = mappedData.filter(r => r.category || r.name);
+        setPreviewData(validData);
+        setShowPreviewModal(true);
+      } catch (err) {
+        alert('Error reading Excel file: ' + err.message);
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const confirmUpload = async () => {
+    const invalid = previewData.filter(r => !r.name || !r.category);
+    if (invalid.length > 0) {
+      return alert(`Found ${invalid.length} row(s) missing a Name or Category. Please fix the file and try again.`);
+    }
+
+    setIsUploading(true);
+    try {
+      // 1. Process Categories (Auto-create missing)
+      const uniqueCats = [...new Set(previewData.map(r => r.category))];
+      const existingCats = categories.map(c => c.name);
+      const newCats = uniqueCats.filter(c => !existingCats.includes(c));
+      
+      if (newCats.length > 0) {
+        const { error: catError } = await supabase
+          .from('categories')
+          .insert(newCats.map(name => ({ name })));
+        if (catError && catError.code !== '42P01') throw catError;
+      }
+
+      // 2. Process Items
+      const itemsToInsert = previewData.map(r => ({
+        name: r.name,
+        category: r.category,
+        unit: r.unit,
+        quantity_in_store: r.quantity,
+        is_consumable: true // Default for catalog uploads
+      }));
+
+      const { error: itemError } = await supabase
+        .from('items')
+        .insert(itemsToInsert);
+        
+      if (itemError) throw itemError;
+
+      alert(`Successfully uploaded ${itemsToInsert.length} items!`);
+      setShowPreviewModal(false);
+      setPreviewData([]);
+      await fetchData(); 
+    } catch (err) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const categoryItems = selectedCategory 
     ? items.filter(item => item.category === selectedCategory.name)
     : [];
 
-  // Helper to count items
   const getItemCount = (categoryName) => {
     return items.filter(item => item.category === categoryName).length;
   };
 
-  // Rendering Category Grid
   const renderCategoryGrid = () => (
     <div className="catalog-grid">
       {categories.map(cat => (
@@ -183,7 +272,6 @@ const CatalogManagement = () => {
         </div>
       ))}
       
-      {/* Add New Category Card */}
       {isAddingCategory ? (
         <div className="add-category-form-card">
           <input 
@@ -267,7 +355,7 @@ const CatalogManagement = () => {
                       {isSaving ? <div className="spinner border-0" style={{width:'16px', height:'16px'}}></div> : <Save size={16} />}
                     </button>
                     <button className="btn btn-outline" style={{padding: '0.5rem'}} onClick={() => setIsAdding(false)} disabled={isSaving}>
-                      <X size={16} className="text-danger" />
+                      <X size={16} style={{color: 'var(--danger-color)'}} />
                     </button>
                   </div>
                 </td>
@@ -337,10 +425,23 @@ const CatalogManagement = () => {
             <h2>Catalog Management</h2>
             <p>Organize and manage your store's categories and products.</p>
           </div>
-          <button className="btn btn-outline" onClick={fetchData} disabled={loading}>
-            <RefreshCw size={18} className={loading ? 'spinner border-0' : ''} />
-            Refresh
-          </button>
+          <div className="flex gap-3">
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileUpload} 
+            />
+            <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+              <Upload size={18} />
+              Import Excel
+            </button>
+            <button className="btn btn-outline" onClick={fetchData} disabled={loading}>
+              <RefreshCw size={18} className={loading ? 'spinner border-0' : ''} />
+              Refresh
+            </button>
+          </div>
         </div>
       )}
 
@@ -350,6 +451,65 @@ const CatalogManagement = () => {
         </div>
       ) : (
         selectedCategory ? renderProductList() : renderCategoryGrid()
+      )}
+
+      {/* Preview Modal */}
+      {showPreviewModal && (
+        <>
+          <div className="side-panel-overlay" onClick={() => !isUploading && setShowPreviewModal(false)}></div>
+          <div className="side-panel flex flex-col" style={{ maxWidth: '600px' }}>
+            <div className="flex justify-between items-center mb-6 pb-4 border-b">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Upload size={24} /> Import Preview
+              </h2>
+              <button className="btn btn-outline p-2 rounded-full" onClick={() => setShowPreviewModal(false)} disabled={isUploading}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-4 text-sm text-gray-600">
+              <p>Review the {previewData.length} items parsed from your Excel file.</p>
+              <p className="mt-1 flex items-center gap-1 text-orange-600">
+                <AlertCircle size={14} /> Missing categories will be auto-created. Opening stock quantities will be applied directly.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-auto border rounded mb-6">
+              <table style={{ width: '100%', fontSize: '0.875rem' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-color)', zIndex: 1 }}>
+                  <tr>
+                    <th style={{ padding: '0.5rem 1rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>Category</th>
+                    <th style={{ padding: '0.5rem 1rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>Item Name</th>
+                    <th style={{ padding: '0.5rem 1rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>Unit</th>
+                    <th style={{ padding: '0.5rem 1rem', textAlign: 'right', borderBottom: '1px solid var(--border-color)' }}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.map((row, idx) => {
+                    const hasError = !row.name || !row.category;
+                    return (
+                      <tr key={idx} style={{ backgroundColor: hasError ? 'rgba(239, 68, 68, 0.1)' : 'transparent', borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.5rem 1rem', color: row.category ? 'inherit' : 'var(--danger-color)' }}>{row.category || 'Missing!'}</td>
+                        <td style={{ padding: '0.5rem 1rem', color: row.name ? 'inherit' : 'var(--danger-color)' }}>{row.name || 'Missing!'}</td>
+                        <td style={{ padding: '0.5rem 1rem' }}>{row.unit}</td>
+                        <td style={{ padding: '0.5rem 1rem', textAlign: 'right' }}>{row.quantity}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <button 
+              className="btn btn-primary w-full" 
+              onClick={confirmUpload} 
+              disabled={isUploading || previewData.filter(r => !r.name || !r.category).length > 0}
+            >
+              {isUploading ? <div className="spinner border-0" style={{ width: 18, height: 18 }}></div> : <Save size={18} />}
+              Confirm Upload
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
