@@ -142,7 +142,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Shared Routes (Store & Store Manager) */}
-      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'manager', 'auditor']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'manager', 'auditor', 'admin']} />}>
         <Route path="/shared/history" element={<GoodsHistory />} />
       </Route>
 
