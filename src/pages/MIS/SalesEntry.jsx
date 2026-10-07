@@ -1,40 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useReferenceData } from '../../context/ReferenceDataContext';
 import { DollarSign, Plus, Trash2 } from 'lucide-react';
+import { z } from 'zod';
+
+const salesSchema = z.array(z.object({
+  item_id: z.string().uuid("Invalid item selection"),
+  qty: z.number().positive("Quantity must be greater than 0")
+})).min(1, "Please add at least one valid item with a quantity greater than 0.");
 
 const DEPARTMENTS = ['Kitchen', 'Bar', 'Byte'];
 
 const SalesEntry = () => {
   const { profile } = useAuth();
-  const [department, setDepartment] = useState('Bar');
-  const [items, setItems] = useState([]);
+  const { items, departments, loading } = useReferenceData();
+  const [department, setDepartment] = useState('');
+  
+  useEffect(() => {
+    if (departments.length > 0 && !department) {
+      setDepartment(departments[0].name);
+    }
+  }, [departments]);
+
   
   const [salesLines, setSalesLines] = useState([{ id: Date.now(), item_id: '', quantity: '' }]);
   
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.from('items').select('*').order('name');
-      if (error) throw error;
-      setItems(data || []);
-      if (data && data.length > 0) {
-        setSalesLines([{ id: Date.now(), item_id: data[0].id, quantity: '' }]);
-      }
-    } catch (error) {
-      console.error('Error fetching items:', error);
-    } finally {
-      setLoading(false);
+    if (items.length > 0 && salesLines[0].item_id === '') {
+      setSalesLines([{ id: Date.now(), item_id: items[0].id, quantity: '' }]);
     }
-  };
+  }, [items]);
 
   const addLine = () => {
     setSalesLines([...salesLines, { id: Date.now(), item_id: items[0]?.id || '', quantity: '' }]);
@@ -51,61 +50,71 @@ const SalesEntry = () => {
 
   const handleEntry = async (e) => {
     e.preventDefault();
-    const validLines = salesLines.filter(line => line.item_id && line.quantity && parseFloat(line.quantity) > 0);
-    
-    if (validLines.length === 0) return alert('Please add at least one valid item with a quantity greater than 0.');
     
     setSubmitting(true);
     setMessage('');
     
     try {
-      // 1. Enter sales records
-      const salesRecords = validLines.map(line => ({
-        department,
-        item_id: line.item_id,
-        quantity_sold: line.quantity,
-        entered_by: profile.id
-      }));
+      // 1. Zod Validation
+      const salesPayloadRaw = salesLines
+        .filter(line => line.item_id && line.quantity)
+        .map(line => ({
+          item_id: line.item_id,
+          qty: parseFloat(line.quantity)
+        }));
 
-      const { error: salesError } = await supabase.from('sales_entries').insert(salesRecords);
-      if (salesError) throw salesError;
+      const salesPayload = salesSchema.parse(salesPayloadRaw);
 
-      // 2. Deduct from department inventory
-      for (const line of validLines) {
-        const { data: invData, error: invError } = await supabase
-          .from('department_inventory')
-          .select('*')
-          .eq('department', department)
-          .eq('item_id', line.item_id)
-          .single();
-          
-        if (invError && invError.code !== 'PGRST116') { // PGRST116 is not found
-          throw invError;
-        }
+      // 2. Department ID Lookup
+      const deptData = departments.find(d => d.name === department);
+      if (!deptData) throw new Error('Department not found');
 
-        if (invData) {
-          const newQty = parseFloat(invData.quantity) - parseFloat(line.quantity);
-          await supabase
-            .from('department_inventory')
-            .update({ quantity: newQty, last_updated: new Date().toISOString() })
-            .eq('id', invData.id);
-        } else {
-          // If not found, log it as negative.
-          await supabase
-            .from('department_inventory')
-            .insert([{
-              department,
-              item_id: line.item_id,
-              quantity: -parseFloat(line.quantity)
-            }]);
-        }
-      }
+      // 3. RPC Call
+      const clientUuid = crypto.randomUUID();
+      const { error: rpcError } = await supabase.rpc('process_sales_entry_rpc', {
+        p_client_uuid: clientUuid,
+        p_department_id: deptData.id,
+        p_sales: salesPayload
+      });
 
-      setMessage(`Successfully logged sales for ${validLines.length} item(s) in ${department}.`);
+      if (rpcError) throw rpcError;
+
+      setMessage(`Successfully logged sales for ${salesPayload.length} item(s) in ${department}.`);
       setSalesLines([{ id: Date.now(), item_id: items[0]?.id || '', quantity: '' }]);
     } catch (error) {
       console.error('Error entering sales:', error);
-      alert('Failed to enter sales: ' + error.message);
+      
+      // Check if it's a network error or generic fetch failure
+      if (!navigator.onLine || error.message?.includes('fetch') || error.message?.includes('Failed to fetch') || error.code === 'TypeError') {
+        try {
+          const { enqueueOfflineSale } = await import('../../lib/offlineQueue');
+          
+          // Re-generate variables if needed, though they exist in scope
+          const salesPayloadRaw = salesLines
+            .filter(line => line.item_id && line.quantity)
+            .map(line => ({ item_id: line.item_id, qty: parseFloat(line.quantity) }));
+          
+          const deptData = departments.find(d => d.name === department);
+          
+          await enqueueOfflineSale({
+            id: crypto.randomUUID(), // client_uuid
+            department_id: deptData.id,
+            sales_payload: salesPayloadRaw
+          });
+          
+          setMessage(`Network offline. Saved ${salesPayloadRaw.length} item(s) locally. Will sync when online.`);
+          setSalesLines([{ id: Date.now(), item_id: items[0]?.id || '', quantity: '' }]);
+          return;
+        } catch (queueErr) {
+          console.error("Failed to queue offline:", queueErr);
+        }
+      }
+
+      if (error instanceof z.ZodError) {
+        alert('Validation Error: ' + error.errors.map(e => e.message).join(', '));
+      } else {
+        alert('Failed to enter sales: ' + error.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -126,8 +135,8 @@ const SalesEntry = () => {
             onChange={(e) => setDepartment(e.target.value)}
             disabled={submitting}
           >
-            {DEPARTMENTS.map(d => (
-              <option key={d} value={d}>{d}</option>
+            {departments.map(d => (
+              <option key={d.id} value={d.name}>{d.name}</option>
             ))}
           </select>
         </div>

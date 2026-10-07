@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { supabaseAdmin } from '../../lib/supabaseAdminClient';
+
 import { RefreshCw, Save, UserPlus, KeyRound, X } from 'lucide-react';
 import { formatRole } from '../../utils/formatters';
 
@@ -85,45 +85,19 @@ const UserManagement = () => {
     e.preventDefault();
     setIsCreating(true);
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-
     try {
-      // 1. Create auth user via direct REST call to Supabase Admin API
-      const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serviceKey}`,
-          'apikey': serviceKey,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: {
           email: newEmail,
           password: newPassword,
-          email_confirm: true,
-          user_metadata: { full_name: newFullName }
-        })
-      });
-
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.message || createData.msg || 'Failed to create auth user');
-
-      const newUserId = createData.id;
-
-      // 2. Upsert profile (the Postgres trigger may auto-create it, we ensure role/dept are set)
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert({
-          id: newUserId,
           full_name: newFullName,
           role: newRole,
-          department_id: newDepartmentId === 'None' ? null : newDepartmentId
-        });
+          department_id: newDepartmentId
+        }
+      });
 
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-        throw new Error('User created in Auth, but Profile failed: ' + profileError.message);
-      }
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
       alert('User created successfully!');
       setShowCreateModal(false);
@@ -134,7 +108,7 @@ const UserManagement = () => {
       setNewDepartmentId('None');
       fetchUsers();
     } catch (err) {
-      alert('Failed to create user: ' + err.message);
+      alert('Failed to create user: ' + (err.message || 'Unknown error'));
     } finally {
       setIsCreating(false);
     }
@@ -150,30 +124,24 @@ const UserManagement = () => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-
     setIsResetting(true);
     try {
-      // Direct REST call to Supabase Admin API to update user password
-      const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${selectedUser.id}`, {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serviceKey}`,
-          'apikey': serviceKey,
-        },
-        body: JSON.stringify({ password: resetPasswordVal })
+        body: {
+          user_id: selectedUser.id,
+          password: resetPasswordVal
+        }
       });
 
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.message || resData.msg || 'Failed to reset password');
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
       alert('Password reset successfully!');
       setShowResetModal(false);
       setSelectedUser(null);
     } catch (err) {
-      alert('Failed to reset password: ' + err.message);
+      alert('Failed to reset password: ' + (err.message || 'Unknown error'));
     } finally {
       setIsResetting(false);
     }

@@ -12,18 +12,12 @@ if (!serviceRoleKey) {
   );
 }
 
-// IMPORTANT: This uses the service role key which bypasses RLS.
-// In a production environment, this should NEVER be exposed to the client-side bundle.
-// Use a secure server-side API route instead.
-export const supabaseAdmin = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  activeKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false
-    }
+export const supabaseAdmin = new Proxy({}, {
+  get: function(target, prop) {
+    throw new Error(
+      "supabaseAdminClient is deprecated and strictly forbidden in the frontend bundle. " +
+      "Use Supabase Edge Functions for admin operations."
+    );
   }
-);
+});
 

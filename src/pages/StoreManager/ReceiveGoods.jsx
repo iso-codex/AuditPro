@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useReferenceData } from '../../context/ReferenceDataContext';
 import { Save, AlertCircle, CheckCircle, Plus, Trash2, Camera } from 'lucide-react';
+import { z } from 'zod';
+
+const receiptSchema = z.array(z.object({
+  item_id: z.string().uuid("Invalid item selection"),
+  quantity: z.number().positive("Quantity must be greater than 0"),
+  unit_cost: z.number().nonnegative("Unit cost cannot be negative").default(0)
+})).min(1, "Please complete at least one valid stock entry.");
 
 const ReceiveGoods = () => {
   const { profile } = useAuth();
-  const [availableItems, setAvailableItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: availableItems, loading } = useReferenceData();
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
@@ -19,27 +26,7 @@ const ReceiveGoods = () => {
   const [receiptFile, setReceiptFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .order('name');
-        
-      if (error) throw error;
-      setAvailableItems(data || []);
-    } catch (error) {
-      console.error(error);
-      setMessage({ type: 'error', text: 'Failed to load catalog items.' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Using ReferenceDataContext for items
 
   const handleLineChange = (id, field, value) => {
     setReceiptLines(lines => 
@@ -70,18 +57,20 @@ const ReceiveGoods = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Filter out empty rows
-    const validLines = receiptLines.filter(line => line.item_id && parseFloat(line.quantity) > 0);
-    
-    if (validLines.length === 0) {
-      setMessage({ type: 'error', text: 'Please complete at least one valid stock entry.' });
-      return;
-    }
-
     setSubmitting(true);
     setMessage({ type: '', text: 'Processing...' });
 
     try {
+      // 1. Zod Validation
+      const rawPayload = receiptLines
+        .filter(line => line.item_id && line.quantity)
+        .map(line => ({
+          item_id: line.item_id,
+          quantity: parseFloat(line.quantity),
+          unit_cost: line.unit_cost ? parseFloat(line.unit_cost) : 0
+        }));
+
+      const validatedPayload = receiptSchema.parse(rawPayload);
       let uploadedReceiptUrl = null;
       
       if (receiptFile) {
@@ -103,60 +92,38 @@ const ReceiveGoods = () => {
         uploadedReceiptUrl = publicUrlData.publicUrl;
       }
 
-      const receiptRecords = [];
-      let auditLogNotes = `Ad-hoc Stock Receipt by ${profile.full_name}: `;
-
-      for (const line of validLines) {
-        const qty = parseFloat(line.quantity);
-        const cost = line.unit_cost ? parseFloat(line.unit_cost) : 0;
+      for (const line of validatedPayload) {
+        const qty = line.quantity;
+        const cost = line.unit_cost;
         const itemObj = availableItems.find(i => i.id === line.item_id);
         
         if (!itemObj) continue;
 
-        // 1. Prepare Goods Receipt Record
-        receiptRecords.push({
-          item_id: line.item_id,
-          quantity_received: qty,
-          received_by: profile.id,
-          date_received: new Date().toISOString().split('T')[0],
-          unit_cost: cost,
-          receipt_url: uploadedReceiptUrl
+        const { error: rpcError } = await supabase.rpc('receive_goods_rpc', {
+          p_item_id: line.item_id,
+          p_quantity: qty,
+          p_unit_cost: cost,
+          p_supplier_id: null,
+          p_receipt_url: uploadedReceiptUrl
         });
 
-        // 2. Update Global Item Stock & Latest Cost
-        const newStock = parseFloat(itemObj.quantity_in_store || 0) + qty;
-        await supabase.from('items')
-          .update({ quantity_in_store: newStock, unit_cost: cost || itemObj.unit_cost })
-          .eq('id', line.item_id);
-          
-        auditLogNotes += `${qty}x ${itemObj.name}, `;
+        if (rpcError) throw rpcError;
       }
 
-      // 3. Insert Goods Receipts
-      if (receiptRecords.length > 0) {
-        await supabase.from('goods_receipts').insert(receiptRecords);
-      }
-
-      // 4. Audit Log
-      await supabase.from('audit_log').insert([{
-        action_type: 'Received',
-        actor_id: profile.id,
-        notes: auditLogNotes.slice(0, -2) // remove trailing comma
-      }]);
-
-      setMessage({ type: 'success', text: `Successfully added stock for ${validLines.length} item(s).` });
+      setMessage({ type: 'success', text: `Successfully added stock for ${validatedPayload.length} item(s).` });
       
       // Reset form
       setReceiptLines([{ id: Date.now(), item_id: '', quantity: '', unit_cost: '' }]);
       setReceiptFile(null);
       setPreviewUrl(null);
       
-      // Refresh items to get updated stock
-      await fetchItems();
-      
     } catch (error) {
       console.error(error);
-      setMessage({ type: 'error', text: error.message || 'Failed to process receipt.' });
+      if (error instanceof z.ZodError) {
+        setMessage({ type: 'error', text: 'Validation Error: ' + error.errors.map(e => e.message).join(', ') });
+      } else {
+        setMessage({ type: 'error', text: error.message || 'Failed to process receipt.' });
+      }
     } finally {
       setSubmitting(false);
     }

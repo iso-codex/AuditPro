@@ -45,13 +45,10 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         })
         .eq('id', requisition.id);
 
-      // Audit Log
-      await supabase.from('audit_log').insert([{
-        action_type: 'Approved',
-        actor_id: profile.id,
-        department: requisition.department,
-        notes: `Requisition ${requisition.id.split('-')[0]} approved`
-      }]);
+      // Audit Log via Logger
+      import('../lib/logger').then(({ logAction }) => {
+        logAction('Approved', requisition.department, `Requisition ${requisition.id.split('-')[0]} approved by manager`);
+      });
 
       // Notify requester
       if (requisition.requested_by) {
@@ -81,12 +78,9 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
         .update({ status: 'Rejected', rejection_reason: rejectReason })
         .eq('id', requisition.id);
       
-      await supabase.from('audit_log').insert([{
-        action_type: 'Rejected',
-        actor_id: profile.id,
-        department: requisition.department,
-        notes: `Requisition ${requisition.id.split('-')[0]} rejected. Reason: ${rejectReason}`
-      }]);
+      import('../lib/logger').then(({ logAction }) => {
+        logAction('Rejected', requisition.department, `Requisition ${requisition.id.split('-')[0]} rejected. Reason: ${rejectReason}`);
+      });
 
       // Notify requester
       if (requisition.requested_by) {
@@ -112,41 +106,32 @@ const RequisitionPanel = ({ requisition, onClose, onUpdate }) => {
     try {
       let lowStockAlerts = [];
 
-      for (const item of items) {
-        // deduct from store
+      const dispatches = items.map(item => {
         const newStock = parseFloat(item.items.quantity_in_store) - parseFloat(item.quantity_approved);
-        if (newStock < 0) throw new Error(`Insufficient stock for ${item.items.name}`);
-
-        await supabase
-          .from('items')
-          .update({ quantity_in_store: newStock })
-          .eq('id', item.item_id);
-
-        await supabase
-          .from('requisition_items')
-          .update({ 
-            quantity_dispatched: item.quantity_approved,
-            unit_cost: item.items.unit_cost || 0
-          })
-          .eq('id', item.id);
-
-
         if (newStock <= item.items.low_stock_threshold) {
           lowStockAlerts.push(item.items.name);
         }
+        return {
+          req_item_id: item.id,
+          qty: parseFloat(item.quantity_approved)
+        };
+      });
+
+      const { error: rpcError } = await supabase.rpc('dispatch_requisition_rpc', {
+        p_req_id: requisition.id,
+        p_dispatches: dispatches
+      });
+
+      if (rpcError) {
+        if (rpcError.message.includes('check_qty_non_negative')) {
+           throw new Error('Insufficient stock for one or more items.');
+        }
+        throw rpcError;
       }
 
-      await supabase
-        .from('requisitions')
-        .update({ status: 'Dispatched' })
-        .eq('id', requisition.id);
-
-      await supabase.from('audit_log').insert([{
-        action_type: 'Dispatched',
-        actor_id: profile.id,
-        department: requisition.department,
-        notes: `Requisition ${requisition.id.split('-')[0]} dispatched`
-      }]);
+      import('../lib/logger').then(({ logAction }) => {
+        logAction('Dispatched', requisition.department, `Requisition ${requisition.id.split('-')[0]} dispatched to store`);
+      });
 
       // Notify requester
       if (requisition.requested_by) {

@@ -175,10 +175,11 @@ const ReportGeneration = () => {
       if (reportType === 'movements') {
         let q = supabase
           .from('audit_log')
-          .select('*, profiles(full_name)')
+          .select('id, created_at, action_type, department, notes, profiles(full_name)')
           .gte('created_at', filters.dateFrom + 'T00:00:00')
           .lte('created_at', filters.dateTo + 'T23:59:59')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(1000);
 
         if (filters.actionType !== 'All') q = q.eq('action_type', filters.actionType);
         if (filters.department !== 'All') q = q.eq('department', filters.department);
@@ -191,10 +192,11 @@ const ReportGeneration = () => {
       } else if (reportType === 'requisitions') {
         let q = supabase
           .from('requisitions')
-          .select('*, profiles!requested_by(full_name), requisition_items(id)')
+          .select('id, department, created_at, status, approver_name, notes, profiles!requested_by(full_name), requisition_items(id)')
           .gte('created_at', filters.dateFrom + 'T00:00:00')
           .lte('created_at', filters.dateTo + 'T23:59:59')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(1000);
 
         if (filters.status !== 'All') q = q.eq('status', filters.status);
         if (filters.department !== 'All') q = q.eq('department', filters.department);
@@ -208,7 +210,8 @@ const ReportGeneration = () => {
         const { data, error } = await supabase
           .from('requisition_items')
           .select('id, quantity_dispatched, quantity_confirmed, discrepancy_notes, requisitions!inner(id, department, created_at), items(name, unit)')
-          .not('quantity_confirmed', 'is', null);
+          .not('quantity_confirmed', 'is', null)
+          .limit(1000);
 
         if (error) throw error;
 
@@ -231,10 +234,11 @@ const ReportGeneration = () => {
       } else if (reportType === 'variances') {
         let q = supabase
           .from('stock_count_lines')
-          .select('*, stock_count_cycles!inner(end_date, status, departments(name)), items(name)')
+          .select('id, expected_closing_qty, counted_qty, variance_qty, variance_value, reason_code, stock_count_cycles!inner(end_date, status, departments(name)), items(name)')
           .gte('stock_count_cycles.end_date', filters.dateFrom)
           .lte('stock_count_cycles.end_date', filters.dateTo)
-          .eq('stock_count_cycles.status', 'approved');
+          .eq('stock_count_cycles.status', 'approved')
+          .limit(1000);
         
         const { data, error } = await q;
         if (error) throw error;
@@ -248,10 +252,11 @@ const ReportGeneration = () => {
       } else if (reportType === 'price_history') {
         let q = supabase
           .from('purchase_price_history')
-          .select('*, items(name), suppliers(name)')
+          .select('id, created_at, quantity, unit_cost, items(name), suppliers(name)')
           .gte('created_at', filters.dateFrom + 'T00:00:00')
           .lte('created_at', filters.dateTo + 'T23:59:59')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(1000);
 
         const { data, error } = await q;
         if (error) throw error;

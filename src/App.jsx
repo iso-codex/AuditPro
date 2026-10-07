@@ -44,6 +44,10 @@ import SalesReconciliation from './pages/MIS/SalesReconciliation';
 import ThresholdManagement from './pages/Manager/ThresholdManagement';
 import ProcurementWorkspace from './pages/Procurement/ProcurementWorkspace';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
+import OfflineSync from './components/OfflineSync';
+
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, profile, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -56,6 +60,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
 
   return (
     <div className="app-container">
+      <OfflineSync />
       <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
       
       {/* Mobile Backdrop */}
@@ -77,7 +82,9 @@ const ProtectedRoute = ({ allowedRoles }) => {
           </div>
         </div>
         <div className="page-content">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>
@@ -173,12 +180,16 @@ const AppRoutes = () => {
   );
 };
 
+import { ReferenceDataProvider } from './context/ReferenceDataContext';
+
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ReferenceDataProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ReferenceDataProvider>
     </AuthProvider>
   );
 }
