@@ -148,7 +148,7 @@ const RaiseRequisition = () => {
       const reqId = crypto.randomUUID();
       const insertPayload = {
         id: reqId,
-        department: profile.department,
+        department_id: profile.department_id,
         requested_by: profile.id,
         date_requested: new Date().toISOString().split('T')[0],
         notes: notes,

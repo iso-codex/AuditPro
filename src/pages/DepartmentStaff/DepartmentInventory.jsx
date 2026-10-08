@@ -9,13 +9,13 @@ const DepartmentInventory = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchInventory = async () => {
-    if (!profile?.department) return;
+    if (!profile?.department_id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('department_inventory')
         .select('*, items(name, category, unit)')
-        .eq('department', profile.department)
+        .eq('department_id', profile.department_id)
         .order('last_updated', { ascending: false });
 
       if (error) throw error;

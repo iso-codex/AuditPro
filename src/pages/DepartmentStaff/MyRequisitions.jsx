@@ -11,7 +11,7 @@ const MyRequisitions = () => {
   const [selectedReq, setSelectedReq] = useState(null);
 
   const fetchRequisitions = async () => {
-    if (!profile?.department) return;
+    if (!profile?.department_id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -24,7 +24,7 @@ const MyRequisitions = () => {
             items (name, unit)
           )
         `)
-        .eq('department', profile.department)
+        .eq('department_id', profile.department_id)
         .order('created_at', { ascending: false });
         
       if (error) throw error;

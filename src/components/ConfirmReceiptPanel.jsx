@@ -38,33 +38,8 @@ const ConfirmReceiptPanel = ({ requisition, onClose, onUpdate }) => {
           })
           .eq('id', item.id);
 
-        // Update department inventory
-        if (parseFloat(item.quantity_confirmed) > 0) {
-          const { data: invData } = await supabase
-            .from('department_inventory')
-            .select('*')
-            .eq('department', requisition.department)
-            .eq('item_id', item.item_id)
-            .single();
-
-          if (invData) {
-            await supabase
-              .from('department_inventory')
-              .update({ 
-                quantity: parseFloat(invData.quantity) + parseFloat(item.quantity_confirmed), 
-                last_updated: new Date().toISOString() 
-              })
-              .eq('id', invData.id);
-          } else {
-            await supabase
-              .from('department_inventory')
-              .insert([{
-                department: requisition.department,
-                item_id: item.item_id,
-                quantity: parseFloat(item.quantity_confirmed)
-              }]);
-          }
-        }
+        // Note: department_inventory is already updated by the dispatch_requisition_rpc 
+        // when the Store Manager dispatched it. We just log the discrepancy notes here.
       }
 
       const finalStatus = hasDiscrepancy ? 'Partially Received' : 'Received';
