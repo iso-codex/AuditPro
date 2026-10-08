@@ -130,7 +130,7 @@ const AppRoutes = () => {
         <Route path="/auditor/discrepancies" element={<DiscrepancyReport />} />
         <Route path="/auditor/reports" element={<ReportGeneration />} />
         <Route path="/auditor/counts" element={<WeeklyStockCount />} />
-        <Route path="/auditor/thresholds" element={<ThresholdManagement />} />
+
       </Route>
 
       {/* New Manager Routes */}

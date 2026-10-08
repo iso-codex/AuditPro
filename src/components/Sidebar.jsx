@@ -68,7 +68,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/auditor/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
           { to: '/auditor/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
           { to: '/auditor/counts', icon: <List size={20} />, label: 'Weekly Counts' },
-          { to: '/auditor/thresholds', icon: <ShieldAlert size={20} />, label: 'Thresholds' },
+
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
