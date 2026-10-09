@@ -154,9 +154,15 @@ const UserManagement = () => {
         body: { action: 'delete', user_id: userId }
       });
       if (error) {
-        // Log the error to console for debugging
+        let msg = error.message;
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            msg = errBody.error || msg;
+          } catch(e) {}
+        }
         console.error("Delete user error:", error);
-        throw error;
+        throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
       alert('User deleted successfully!');
