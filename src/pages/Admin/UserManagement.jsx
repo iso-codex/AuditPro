@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
-import { RefreshCw, Save, UserPlus, KeyRound, X } from 'lucide-react';
+import { RefreshCw, Save, UserPlus, KeyRound, X, Trash2, Check } from 'lucide-react';
 import { formatRole } from '../../utils/formatters';
 
 const ROLES = ['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement'];
 
 const UserManagement = () => {
+  const { profile } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
+  const [pendingUsers, setPendingUsers] = useState([]);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -48,10 +51,28 @@ const UserManagement = () => {
     }
   };
 
+  const fetchPendingUsers = async () => {
+    if (profile?.role !== 'admin') return;
+    try {
+      const { data, error } = await supabase
+        .from('pending_users')
+        .select(`*, profiles(full_name)`)
+        .eq('status', 'Pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setPendingUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching pending users:', error);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchDepartments();
-  }, []);
+    if (profile?.role === 'admin') {
+      fetchPendingUsers();
+    }
+  }, [profile?.role]);
 
   const fetchDepartments = async () => {
     const { data } = await supabase.from('departments').select('*').order('name');
@@ -86,20 +107,32 @@ const UserManagement = () => {
     setIsCreating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        body: {
+      if (profile?.role === 'manager') {
+        const { error } = await supabase.from('pending_users').insert({
           email: newEmail,
           password: newPassword,
           full_name: newFullName,
           role: newRole,
-          department_id: newDepartmentId
-        }
-      });
+          department_id: newDepartmentId === 'None' ? null : newDepartmentId,
+          requested_by: profile.id
+        });
+        if (error) throw error;
+        alert('User creation request sent to admin for approval!');
+      } else {
+        const { data, error } = await supabase.functions.invoke('admin-users', {
+          body: {
+            email: newEmail,
+            password: newPassword,
+            full_name: newFullName,
+            role: newRole,
+            department_id: newDepartmentId
+          }
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        alert('User created successfully!');
+      }
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      alert('User created successfully!');
       setShowCreateModal(false);
       setNewEmail('');
       setNewPassword('');
@@ -111,6 +144,56 @@ const UserManagement = () => {
       alert('Failed to create user: ' + (err.message || 'Unknown error'));
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        method: 'DELETE',
+        body: { user_id: userId }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      alert('User deleted successfully!');
+      fetchUsers();
+    } catch (err) {
+      alert('Failed to delete user: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleApprovePending = async (pendingUser) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: {
+          email: pendingUser.email,
+          password: pendingUser.password,
+          full_name: pendingUser.full_name,
+          role: pendingUser.role,
+          department_id: pendingUser.department_id || 'None'
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      await supabase.from('pending_users').update({ status: 'Approved' }).eq('id', pendingUser.id);
+      
+      alert('User approved and created successfully!');
+      fetchUsers();
+      fetchPendingUsers();
+    } catch (err) {
+      alert('Failed to approve user: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleRejectPending = async (pendingUser) => {
+    try {
+      await supabase.from('pending_users').update({ status: 'Rejected' }).eq('id', pendingUser.id);
+      alert('User request rejected.');
+      fetchPendingUsers();
+    } catch (err) {
+      alert('Failed to reject user: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -235,6 +318,13 @@ const UserManagement = () => {
                     >
                       <KeyRound size={16} />
                     </button>
+                    <button 
+                      className="btn btn-danger p-1 text-sm" 
+                      onClick={() => handleDeleteUser(user.id)}
+                      title="Delete User"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -242,6 +332,53 @@ const UserManagement = () => {
           </tbody>
         </table>
       </div>
+
+      {profile?.role === 'admin' && pendingUsers.length > 0 && (
+        <div className="mt-8">
+          <h3 className="mb-4">Pending User Approvals</h3>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Requested By</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingUsers.map(user => (
+                  <tr key={user.id}>
+                    <td className="font-medium">{user.full_name}</td>
+                    <td>{user.email}</td>
+                    <td>{formatRole(user.role)}</td>
+                    <td>{user.profiles?.full_name || 'Manager'}</td>
+                    <td>
+                      <div className="flex gap-2">
+                        <button 
+                          className="btn btn-primary p-1 text-sm" 
+                          onClick={() => handleApprovePending(user)}
+                          title="Approve User"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button 
+                          className="btn btn-danger p-1 text-sm" 
+                          onClick={() => handleRejectPending(user)}
+                          title="Reject User"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Create User Modal */}
       {showCreateModal && (
