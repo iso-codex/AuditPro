@@ -151,10 +151,13 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       const { data, error } = await supabase.functions.invoke('admin-users', {
-        method: 'DELETE',
-        body: { user_id: userId }
+        body: { action: 'delete', user_id: userId }
       });
-      if (error) throw error;
+      if (error) {
+        // Log the error to console for debugging
+        console.error("Delete user error:", error);
+        throw error;
+      }
       if (data?.error) throw new Error(data.error);
       alert('User deleted successfully!');
       fetchUsers();
