@@ -43,6 +43,11 @@ import DepartmentStock from './pages/Manager/DepartmentStock';
 import SalesReconciliation from './pages/MIS/SalesReconciliation';
 import ThresholdManagement from './pages/Manager/ThresholdManagement';
 import ProcurementWorkspace from './pages/Procurement/ProcurementWorkspace';
+import MarketForm from './pages/Procurement/MarketForm';
+import FrozenGoodsForm from './pages/Procurement/FrozenGoodsForm';
+import ProcurementFormsReview from './pages/Procurement/ProcurementFormsReview';
+import WeeklyStockEntryChecks from './pages/RecordsKeeper/WeeklyStockEntryChecks';
+import DamagesRegister from './pages/Shared/DamagesRegister';
 
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -141,9 +146,22 @@ const AppRoutes = () => {
         <Route path="/manager-role/thresholds" element={<ThresholdManagement />} />
       </Route>
 
-      {/* Shared Routes (Store & Store Manager) */}
-      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'manager', 'auditor', 'admin']} />}>
+      {/* Shared Routes (Store, Store Manager, Records Keeper, Manager, Auditor, Admin) */}
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'manager', 'auditor', 'admin', 'records_keeper']} />}>
         <Route path="/shared/history" element={<GoodsHistory />} />
+      </Route>
+
+      {/* Records Keeper / Weekly Stock Entry Checks */}
+      <Route element={<ProtectedRoute allowedRoles={['records_keeper', 'manager', 'auditor', 'admin']} />}>
+        <Route path="/records-keeper/weekly-checks" element={<WeeklyStockEntryChecks />} />
+      </Route>
+
+      {/* Damages Register Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'store', 'department_staff', 'manager', 'admin', 'auditor']} />}>
+        <Route path="/damages" element={<DamagesRegister />} />
+        <Route path="/manager/damages" element={<DamagesRegister />} />
+        <Route path="/staff/damages" element={<DamagesRegister />} />
+        <Route path="/store-role/damages" element={<DamagesRegister />} />
       </Route>
 
       {/* New Store Routes */}
@@ -167,8 +185,15 @@ const AppRoutes = () => {
         <Route path="/procurement/purchase-orders" element={<PurchaseOrders />} />
       </Route>
 
+      {/* Procurement Forms (Market & Frozen Goods Forms) */}
+      <Route element={<ProtectedRoute allowedRoles={['procurement', 'admin', 'manager', 'auditor']} />}>
+        <Route path="/procurement/market-form" element={<MarketForm />} />
+        <Route path="/procurement/frozen-goods" element={<FrozenGoodsForm />} />
+        <Route path="/procurement/forms-review" element={<ProcurementFormsReview />} />
+      </Route>
+
       {/* Profile Settings (All authenticated users) */}
-      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement', 'records_keeper']} />}>
         <Route path="/profile" element={<ProfileSettings />} />
       </Route>
 

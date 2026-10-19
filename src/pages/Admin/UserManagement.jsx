@@ -5,7 +5,21 @@ import { useAuth } from '../../context/AuthContext';
 import { RefreshCw, Save, UserPlus, KeyRound, X, Trash2, Check } from 'lucide-react';
 import { formatRole } from '../../utils/formatters';
 
-const ROLES = ['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement'];
+const ROLES = ['store_manager', 'department_staff', 'auditor', 'admin', 'store', 'manager', 'mis', 'procurement', 'records_keeper'];
+
+const extractErrorMessage = async (error, data) => {
+  if (data?.error) return data.error;
+  if (!error) return null;
+  let msg = error.message || 'Operation failed';
+  if (error.context && typeof error.context.json === 'function') {
+    try {
+      const errBody = await error.context.json();
+      if (errBody?.error) msg = errBody.error;
+      else if (errBody?.message) msg = errBody.message;
+    } catch (_) {}
+  }
+  return msg;
+};
 
 const UserManagement = () => {
   const { profile } = useAuth();
@@ -28,10 +42,12 @@ const UserManagement = () => {
   const [newRole, setNewRole] = useState('');
   const [newDepartmentId, setNewDepartmentId] = useState('None');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
 
   // Reset Password Form
   const [resetPasswordVal, setResetPasswordVal] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -86,9 +102,15 @@ const UserManagement = () => {
   const saveUser = async (user) => {
     setSaving(user.id);
     try {
+      const cleanDeptId = (!user.department_id || user.department_id === 'None') ? null : user.department_id;
+      const dept = departments.find(d => d.id === cleanDeptId);
       const { error } = await supabase
         .from('profiles')
-        .update({ role: user.role, department_id: user.department_id === 'None' ? null : user.department_id })
+        .update({ 
+          role: user.role, 
+          department_id: cleanDeptId,
+          department: cleanDeptId ? (dept?.name || null) : null
+        })
         .eq('id', user.id);
         
       if (error) throw error;
@@ -102,18 +124,33 @@ const UserManagement = () => {
     }
   };
 
+  const openCreateModal = () => {
+    setCreateError(null);
+    setNewEmail('');
+    setNewPassword('');
+    setNewFullName('');
+    setNewRole('');
+    setNewDepartmentId('None');
+    setShowCreateModal(true);
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setIsCreating(true);
+    setCreateError(null);
 
     try {
+      const cleanDeptId = (!newDepartmentId || newDepartmentId === 'None') ? null : newDepartmentId;
+      const dept = departments.find(d => d.id === cleanDeptId);
+      const cleanDeptName = cleanDeptId ? (dept?.name || null) : null;
+
       if (profile?.role === 'manager') {
         const { error } = await supabase.from('pending_users').insert({
           email: newEmail,
           password: newPassword,
           full_name: newFullName,
           role: newRole,
-          department_id: newDepartmentId === 'None' ? null : newDepartmentId,
+          department_id: cleanDeptId,
           requested_by: profile.id
         });
         if (error) throw error;
@@ -125,11 +162,14 @@ const UserManagement = () => {
             password: newPassword,
             full_name: newFullName,
             role: newRole,
-            department_id: newDepartmentId
+            department_id: cleanDeptId,
+            department: cleanDeptName
           }
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error || data?.error) {
+          const msg = await extractErrorMessage(error, data);
+          throw new Error(msg);
+        }
         alert('User created successfully!');
       }
 
@@ -141,7 +181,9 @@ const UserManagement = () => {
       setNewDepartmentId('None');
       fetchUsers();
     } catch (err) {
-      alert('Failed to create user: ' + (err.message || 'Unknown error'));
+      const errorMsg = err.message || 'Unknown error';
+      setCreateError(errorMsg);
+      alert('Failed to create user: ' + errorMsg);
     } finally {
       setIsCreating(false);
     }
@@ -153,18 +195,11 @@ const UserManagement = () => {
       const { data, error } = await supabase.functions.invoke('admin-users', {
         body: { action: 'delete', user_id: userId }
       });
-      if (error) {
-        let msg = error.message;
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errBody = await error.context.json();
-            msg = errBody.error || msg;
-          } catch(e) {}
-        }
+      if (error || data?.error) {
+        const msg = await extractErrorMessage(error, data);
         console.error("Delete user error:", error);
         throw new Error(msg);
       }
-      if (data?.error) throw new Error(data.error);
       alert('User deleted successfully!');
       fetchUsers();
     } catch (err) {
@@ -174,17 +209,24 @@ const UserManagement = () => {
 
   const handleApprovePending = async (pendingUser) => {
     try {
+      const cleanDeptId = (!pendingUser.department_id || pendingUser.department_id === 'None') ? null : pendingUser.department_id;
+      const dept = departments.find(d => d.id === cleanDeptId);
+      const cleanDeptName = cleanDeptId ? (dept?.name || null) : null;
+
       const { data, error } = await supabase.functions.invoke('admin-users', {
         body: {
           email: pendingUser.email,
           password: pendingUser.password,
           full_name: pendingUser.full_name,
           role: pendingUser.role,
-          department_id: pendingUser.department_id || 'None'
+          department_id: cleanDeptId,
+          department: cleanDeptName
         }
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        const msg = await extractErrorMessage(error, data);
+        throw new Error(msg);
+      }
 
       await supabase.from('pending_users').update({ status: 'Approved' }).eq('id', pendingUser.id);
       
@@ -209,6 +251,7 @@ const UserManagement = () => {
   const openResetModal = (user) => {
     setSelectedUser(user);
     setResetPasswordVal('');
+    setResetError(null);
     setShowResetModal(true);
   };
 
@@ -217,6 +260,7 @@ const UserManagement = () => {
     if (!selectedUser) return;
 
     setIsResetting(true);
+    setResetError(null);
     try {
       const { data, error } = await supabase.functions.invoke('admin-users', {
         method: 'PUT',
@@ -226,14 +270,18 @@ const UserManagement = () => {
         }
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error || data?.error) {
+        const msg = await extractErrorMessage(error, data);
+        throw new Error(msg);
+      }
 
       alert('Password reset successfully!');
       setShowResetModal(false);
       setSelectedUser(null);
     } catch (err) {
-      alert('Failed to reset password: ' + (err.message || 'Unknown error'));
+      const errorMsg = err.message || 'Unknown error';
+      setResetError(errorMsg);
+      alert('Failed to reset password: ' + errorMsg);
     } finally {
       setIsResetting(false);
     }
@@ -247,7 +295,7 @@ const UserManagement = () => {
           <p>Manage roles, departments, create users, and reset passwords.</p>
         </div>
         <div className="flex gap-3">
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          <button className="btn btn-primary" onClick={openCreateModal}>
             <UserPlus size={18} />
             <span>Create User</span>
           </button>
@@ -401,6 +449,11 @@ const UserManagement = () => {
               </button>
             </div>
             <form onSubmit={handleCreateUser} className="space-y-4 flex-1">
+              {createError && (
+                <div style={{ padding: '0.75rem', marginBottom: '1rem', borderRadius: '0.375rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontSize: '0.875rem', fontWeight: 500 }}>
+                  {createError}
+                </div>
+              )}
               <div>
                 <label className="form-label">Email Address</label>
                 <input type="email" required className="form-input w-full" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
@@ -455,6 +508,11 @@ const UserManagement = () => {
               Enter a new password for <strong>{selectedUser.full_name || 'this user'}</strong>.
             </p>
             <form onSubmit={handleResetPassword} className="space-y-4">
+              {resetError && (
+                <div style={{ padding: '0.75rem', marginBottom: '1rem', borderRadius: '0.375rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontSize: '0.875rem', fontWeight: 500 }}>
+                  {resetError}
+                </div>
+              )}
               <div>
                 <label className="form-label">New Password</label>
                 <input type="password" required className="form-input w-full" minLength="6" value={resetPasswordVal} onChange={e => setResetPasswordVal(e.target.value)} />

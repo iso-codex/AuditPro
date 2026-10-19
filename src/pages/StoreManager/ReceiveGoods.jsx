@@ -4,10 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useReferenceData } from '../../context/ReferenceDataContext';
 import { Save, AlertCircle, CheckCircle, Plus, Trash2, Camera } from 'lucide-react';
 import { z } from 'zod';
+import ReceiptUpload from '../../components/ReceiptUpload';
 
 const receiptSchema = z.array(z.object({
   item_id: z.string().uuid("Invalid item selection"),
-  quantity: z.number().positive("Quantity must be greater than 0"),
+  quantity: z.number().int("Quantity must be a whole number in portions").positive("Quantity must be greater than 0"),
   unit_cost: z.number().nonnegative("Unit cost cannot be negative").default(0)
 })).min(1, "Please complete at least one valid stock entry.");
 
@@ -22,9 +23,8 @@ const ReceiveGoods = () => {
     { id: Date.now(), item_id: '', quantity: '', unit_cost: '' }
   ]);
   
-  // State for file upload
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  // State for receipt upload
+  const [receiptUrl, setReceiptUrl] = useState('');
 
   // Using ReferenceDataContext for items
 
@@ -42,55 +42,28 @@ const ReceiveGoods = () => {
     setReceiptLines(lines => lines.filter(line => line.id !== id));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setReceiptFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    } else {
-      setReceiptFile(null);
-      setPreviewUrl(null);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!receiptUrl) {
+      setMessage({ type: 'error', text: 'A receipt image is strictly required for every stock entry. Please attach a receipt.' });
+      return;
+    }
+
     setSubmitting(true);
     setMessage({ type: '', text: 'Processing...' });
 
     try {
-      // 1. Zod Validation
+      // 1. Zod Validation (Portions only)
       const rawPayload = receiptLines
         .filter(line => line.item_id && line.quantity)
         .map(line => ({
           item_id: line.item_id,
-          quantity: parseFloat(line.quantity),
+          quantity: parseInt(line.quantity, 10),
           unit_cost: line.unit_cost ? parseFloat(line.unit_cost) : 0
         }));
 
       const validatedPayload = receiptSchema.parse(rawPayload);
-      let uploadedReceiptUrl = null;
-      
-      if (receiptFile) {
-        setMessage({ type: '', text: 'Uploading receipt image...' });
-        const fileExt = receiptFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${profile.id}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('receipts')
-          .upload(filePath, receiptFile);
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('receipts')
-          .getPublicUrl(filePath);
-          
-        uploadedReceiptUrl = publicUrlData.publicUrl;
-      }
 
       for (const line of validatedPayload) {
         const qty = line.quantity;
@@ -104,7 +77,7 @@ const ReceiveGoods = () => {
           p_quantity: qty,
           p_unit_cost: cost,
           p_supplier_id: null,
-          p_receipt_url: uploadedReceiptUrl
+          p_receipt_url: receiptUrl || null
         });
 
         if (rpcError) throw rpcError;
@@ -114,8 +87,7 @@ const ReceiveGoods = () => {
       
       // Reset form
       setReceiptLines([{ id: Date.now(), item_id: '', quantity: '', unit_cost: '' }]);
-      setReceiptFile(null);
-      setPreviewUrl(null);
+      setReceiptUrl('');
       
     } catch (error) {
       console.error(error);
@@ -165,13 +137,13 @@ const ReceiveGoods = () => {
               <thead>
                 <tr>
                   <th style={{ width: '40%' }}>Item</th>
-                  <th style={{ width: '20%' }}>Quantity Received</th>
-                  <th style={{ width: '25%' }}>Unit Cost ($)</th>
+                  <th style={{ width: '25%' }}>Quantity (Portions Only)</th>
+                  <th style={{ width: '20%' }}>Unit Cost ($)</th>
                   <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {receiptLines.map((line, index) => (
+                {receiptLines.map((line) => (
                   <tr key={line.id}>
                     <td>
                       <select 
@@ -189,16 +161,29 @@ const ReceiveGoods = () => {
                       </select>
                     </td>
                     <td>
-                      <input 
-                        type="number" 
-                        className="form-input" 
-                        placeholder="0"
-                        value={line.quantity}
-                        onChange={(e) => handleLineChange(line.id, 'quantity', e.target.value)}
-                        min="0.1"
-                        step="0.1"
-                        required
-                      />
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="Portions (whole number)"
+                          value={line.quantity}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || (!val.includes('.') && parseInt(val, 10) >= 0)) {
+                              handleLineChange(line.id, 'quantity', val);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === 'e' || e.key === '+' || e.key === '-') {
+                              e.preventDefault();
+                            }
+                          }}
+                          min="1"
+                          step="1"
+                          required
+                        />
+                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">portions</span>
+                      </div>
                     </td>
                     <td>
                       <input 
@@ -240,33 +225,33 @@ const ReceiveGoods = () => {
             </button>
           </div>
           
-          <div className="mb-6 p-4 rounded-xl border bg-gray-50" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
-            <h4 className="mb-3 flex items-center gap-2 font-semibold">
-              <Camera size={18} /> Attach Receipt
-            </h4>
-            <div className="flex items-start gap-4 flex-col sm:flex-row">
-              <div className="flex-1 w-full">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment" 
-                  className="form-input w-full bg-white" 
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-2">Take a photo or upload an image of the physical receipt for auditing.</p>
-              </div>
-              {previewUrl && (
-                <div className="w-24 h-24 rounded-lg border overflow-hidden flex-shrink-0 bg-white" style={{ borderColor: 'var(--border-color)' }}>
-                  <img src={previewUrl} alt="Receipt preview" className="w-full h-full object-cover" />
-                </div>
-              )}
-            </div>
+          <div className="mb-6">
+            <ReceiptUpload
+              value={receiptUrl}
+              onChange={setReceiptUrl}
+              folder="stock-entries"
+              label="Attach Receipt Image"
+              helpText="Take a photo or upload an image of the physical receipt for auditing. Required to submit."
+              required={true}
+            />
           </div>
           
-          <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Processing...' : <><Save size={18} /> Add Stock</>}
-            </button>
+          <div className="flex justify-between items-center pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            {!receiptUrl && (
+              <span className="text-xs text-amber-700 font-medium flex items-center gap-1">
+                <AlertCircle size={14} /> Receipt image required to submit stock entry
+              </span>
+            )}
+            <div className="ml-auto">
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={submitting || !receiptUrl}
+                title={!receiptUrl ? 'Attach a receipt to enable submission' : 'Add Stock'}
+              >
+                {submitting ? 'Processing...' : <><Save size={18} /> Add Stock</>}
+              </button>
+            </div>
           </div>
         </form>
       </div>

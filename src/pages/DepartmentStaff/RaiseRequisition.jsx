@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Send, AlertCircle, Save, Download } from 'lucide-react';
+import { Plus, Trash2, Send, AlertCircle, Save } from 'lucide-react';
 
 const RaiseRequisition = () => {
   const { profile } = useAuth();
@@ -10,6 +10,9 @@ const RaiseRequisition = () => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
+  const [departmentName, setDepartmentName] = useState(profile?.department || '');
+  const [departmentId, setDepartmentId] = useState(profile?.department_id || '');
+
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState([
     { id: Date.now(), item_id: '', quantity: '' }
@@ -19,26 +22,64 @@ const RaiseRequisition = () => {
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
+    if (!profile) return;
+
+    let isMounted = true;
     const fetchInitialData = async () => {
+      setLoading(true);
       try {
+        let currentDeptName = profile.department;
+        let currentDeptId = profile.department_id;
+
+        // If department name is missing but department_id exists, resolve it
+        if (!currentDeptName && currentDeptId) {
+          const { data: dept } = await supabase
+            .from('departments')
+            .select('name')
+            .eq('id', currentDeptId)
+            .single();
+          if (dept) currentDeptName = dept.name;
+        } else if (currentDeptName && !currentDeptId) {
+          const { data: dept } = await supabase
+            .from('departments')
+            .select('id')
+            .eq('name', currentDeptName)
+            .single();
+          if (dept) currentDeptId = dept.id;
+        }
+
+        if (isMounted) {
+          setDepartmentName(currentDeptName || '');
+          setDepartmentId(currentDeptId || '');
+        }
+
         const [itemsRes, templatesRes] = await Promise.all([
           supabase.from('items').select('*').order('name'),
-          supabase.from('requisition_templates').select('*').eq('department', profile?.department || '').order('name')
+          currentDeptName
+            ? supabase.from('requisition_templates').select('*').eq('department', currentDeptName).order('name')
+            : Promise.resolve({ data: [] })
         ]);
         if (itemsRes.error) throw itemsRes.error;
         if (templatesRes.error) throw templatesRes.error;
         
-        setItems(itemsRes.data || []);
-        setTemplates(templatesRes.data || []);
+        if (isMounted) {
+          setItems(itemsRes.data || []);
+          setTemplates(templatesRes.data || []);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    if (profile?.department) {
-      fetchInitialData();
-    }
+
+    fetchInitialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [profile]);
 
   const loadTemplate = async (templateId) => {
@@ -75,6 +116,12 @@ const RaiseRequisition = () => {
       return;
     }
 
+    const deptName = departmentName || profile?.department;
+    if (!deptName) {
+      setMessage({ type: 'error', text: 'Cannot save template: No department assigned to profile.' });
+      return;
+    }
+
     const templateName = prompt("Enter a name for this template:");
     if (!templateName) return;
 
@@ -86,7 +133,7 @@ const RaiseRequisition = () => {
         .insert([{
           id: templateId,
           name: templateName,
-          department: profile.department,
+          department: deptName,
           created_by: profile.id
         }]);
         
@@ -104,7 +151,7 @@ const RaiseRequisition = () => {
 
       if (itemsError) throw itemsError;
 
-      setTemplates([...templates, { id: templateId, name: templateName, department: profile.department }]);
+      setTemplates([...templates, { id: templateId, name: templateName, department: deptName }]);
       setMessage({ type: 'success', text: `Template "${templateName}" saved successfully!` });
     } catch (error) {
       console.error('Template save error:', error);
@@ -140,6 +187,14 @@ const RaiseRequisition = () => {
       return;
     }
 
+    const deptId = departmentId || profile?.department_id;
+    if (!deptId) {
+      setMessage({ type: 'error', text: 'No department assigned to your account. Please contact an administrator.' });
+      return;
+    }
+
+    const deptName = departmentName || profile?.department || 'Department';
+
     setSubmitting(true);
     setMessage({ type: '', text: '' });
 
@@ -148,7 +203,7 @@ const RaiseRequisition = () => {
       const reqId = crypto.randomUUID();
       const insertPayload = {
         id: reqId,
-        department_id: profile.department_id,
+        department_id: deptId,
         requested_by: profile.id,
         date_requested: new Date().toISOString().split('T')[0],
         notes: notes,
@@ -181,7 +236,7 @@ const RaiseRequisition = () => {
       await supabase.from('audit_log').insert([{
         action_type: 'Requisition Raised',
         actor_id: profile.id,
-        department: profile.department,
+        department: deptName,
         notes: `Raised requisition ${reqId.split('-')[0]} with ${validItems.length} items.`
       }]);
 
@@ -195,7 +250,7 @@ const RaiseRequisition = () => {
         const notificationsData = managers.map(m => ({
           user_id: m.id,
           title: 'New Requisition',
-          message: `New requisition raised by ${profile.department} department.`,
+          message: `New requisition raised by ${deptName} department.`,
           link: '/manager/inbox'
         }));
         await supabase.from('notifications').insert(notificationsData);
@@ -214,7 +269,7 @@ const RaiseRequisition = () => {
                 subscription: sub.subscription,
                 payload: {
                   title: 'New Requisition',
-                  message: `New requisition raised by ${profile.department} department.`,
+                  message: `New requisition raised by ${deptName} department.`,
                   link: '/manager/inbox'
                 }
               }
@@ -235,6 +290,8 @@ const RaiseRequisition = () => {
   };
 
   if (loading) return <div className="spinner mt-10 mx-auto"></div>;
+
+  const currentDisplayDept = departmentName || profile?.department || '';
 
   return (
     <div className="raise-requisition-page" style={{ maxWidth: '800px' }}>
@@ -262,6 +319,14 @@ const RaiseRequisition = () => {
       </div>
 
       <div className="card">
+        {!loading && !departmentId && !profile?.department_id && (
+          <div className="mb-4 p-3 rounded flex items-center gap-2"
+               style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#b45309' }}>
+            <AlertCircle size={18} />
+            <span>Notice: No department is assigned to your account. Please ask an administrator to assign your department.</span>
+          </div>
+        )}
+
         {message.text && (
           <div className={`mb-4 p-3 rounded flex items-center gap-2 ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
                style={{ backgroundColor: message.type === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', color: message.type === 'error' ? 'var(--danger-color)' : 'var(--success-color)' }}>
@@ -274,7 +339,7 @@ const RaiseRequisition = () => {
           <div className="flex flex-col-mobile gap-4 mb-6">
             <div className="form-group flex-1">
               <label className="form-label">Department</label>
-              <input type="text" className="form-input bg-gray-50 text-gray-500" value={profile?.department || ''} readOnly disabled />
+              <input type="text" className="form-input bg-gray-50 text-gray-500" value={currentDisplayDept || 'No Department'} readOnly disabled />
             </div>
             <div className="form-group flex-1">
               <label className="form-label">Requested By</label>
@@ -288,7 +353,7 @@ const RaiseRequisition = () => {
 
           <div className="mb-6">
             <h3 className="mb-3">Items</h3>
-            {lineItems.map((lineItem, index) => {
+            {lineItems.map((lineItem) => {
               const selectedItem = items.find(i => i.id === lineItem.item_id);
               return (
                 <div key={lineItem.id} className="flex gap-3 mb-3 items-start">
@@ -355,11 +420,11 @@ const RaiseRequisition = () => {
           </div>
 
           <div className="flex justify-between pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
-            <button type="button" className="btn btn-outline" onClick={saveAsTemplate} disabled={savingTemplate || submitting}>
+            <button type="button" className="btn btn-outline" onClick={saveAsTemplate} disabled={savingTemplate || submitting || !currentDisplayDept}>
               {savingTemplate ? <div className="spinner border-0" style={{width: '16px', height: '16px'}}></div> : <Save size={18} />}
               <span>Save as Template</span>
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting || savingTemplate}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || savingTemplate || (!departmentId && !profile?.department_id)}>
               {submitting ? <div className="spinner border-0" style={{width: '16px', height: '16px'}}></div> : <Send size={18} />}
               <span>Submit Requisition</span>
             </button>

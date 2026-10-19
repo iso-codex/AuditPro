@@ -44,7 +44,19 @@ export const AuthProvider = ({ children }) => {
         .single();
         
       if (error) throw error;
-      setProfile(data);
+
+      let profileData = data;
+      if (data && data.department_id && !data.department) {
+        const { data: dept } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', data.department_id)
+          .single();
+        if (dept) {
+          profileData = { ...data, department: dept.name };
+        }
+      }
+      setProfile(profileData);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfileError(JSON.stringify(error));

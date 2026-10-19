@@ -11,7 +11,11 @@ const MyRequisitions = () => {
   const [selectedReq, setSelectedReq] = useState(null);
 
   const fetchRequisitions = async () => {
-    if (!profile?.department_id) return;
+    if (!profile) return;
+    if (!profile.department_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase

@@ -9,7 +9,11 @@ const DepartmentInventory = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchInventory = async () => {
-    if (!profile?.department_id) return;
+    if (!profile) return;
+    if (!profile.department_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -36,7 +40,7 @@ const DepartmentInventory = () => {
     <div className="page-content">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2>{profile?.department} Inventory</h2>
+          <h2>{profile?.department || 'Department'} Inventory</h2>
           <p className="text-gray-500">Current stock levels for your department.</p>
         </div>
         <button className="btn btn-outline" onClick={fetchInventory} disabled={loading}>

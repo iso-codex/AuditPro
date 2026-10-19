@@ -19,7 +19,9 @@ import {
   ShoppingCart,
   Settings,
   DollarSign,
-  Download
+  Download,
+  CheckSquare,
+  Trash2
 } from 'lucide-react';
 import { formatRole } from '../utils/formatters';
 import './Sidebar.css';
@@ -45,6 +47,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       case 'procurement':
         return [
           { to: '/procurement/workspace', icon: <LayoutDashboard size={20} />, label: 'Workspace' },
+          { to: '/procurement/market-form', icon: <FileText size={20} />, label: 'Market Form' },
+          { to: '/procurement/frozen-goods', icon: <Package size={20} />, label: 'Frozen Goods Form' },
           { to: '/procurement/purchase-orders', icon: <ShoppingCart size={20} />, label: 'Purchase Orders' },
           { to: '/procurement/suppliers', icon: <Truck size={20} />, label: 'Suppliers' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Price History' },
@@ -52,6 +56,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       case 'store_manager':
         return [
           { to: '/manager/receive', icon: <Package size={20} />, label: 'Receive Goods' },
+          { to: '/manager/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
@@ -61,14 +66,19 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/staff/raise', icon: <FilePlus size={20} />, label: 'Raise Requisition' },
           { to: '/staff/my-requisitions', icon: <List size={20} />, label: 'My Requisitions' },
           { to: '/staff/inventory', icon: <Layers size={20} />, label: 'Dept Inventory' },
+          { to: '/staff/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
         ];
       case 'auditor':
         return [
           { to: '/auditor/overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
+          { to: '/procurement/market-form', icon: <FileText size={20} />, label: 'Market Form' },
+          { to: '/procurement/frozen-goods', icon: <Package size={20} />, label: 'Frozen Goods Form' },
+          { to: '/procurement/forms-review', icon: <FileText size={20} />, label: 'Procurement Forms' },
+          { to: '/records-keeper/weekly-checks', icon: <CheckSquare size={20} />, label: 'Stock Entry Checks' },
+          { to: '/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
           { to: '/auditor/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
           { to: '/auditor/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
           { to: '/auditor/counts', icon: <List size={20} />, label: 'Weekly Counts' },
-
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
           { to: '/auditor/logs', icon: <FileText size={20} />, label: 'Audit Log' },
           { to: '/auditor/discrepancies', icon: <ShieldAlert size={20} />, label: 'Discrepancies' },
@@ -77,6 +87,11 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       case 'manager':
         return [
           { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
+          { to: '/procurement/market-form', icon: <FileText size={20} />, label: 'Market Form' },
+          { to: '/procurement/frozen-goods', icon: <Package size={20} />, label: 'Frozen Goods Form' },
+          { to: '/procurement/forms-review', icon: <FileText size={20} />, label: 'Procurement Forms' },
+          { to: '/records-keeper/weekly-checks', icon: <CheckSquare size={20} />, label: 'Stock Entry Checks' },
+          { to: '/manager/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
           { to: '/manager-role/requisitions', icon: <Globe size={20} />, label: 'Approve Requisitions' },
           { to: '/manager-role/counts', icon: <List size={20} />, label: 'Weekly Stock Counts' },
           { to: '/manager-role/stock', icon: <Layers size={20} />, label: 'Department Stock' },
@@ -86,6 +101,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       case 'store':
         return [
           { to: '/store-role/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
+          { to: '/store-role/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
           { to: '/store-role/count', icon: <List size={20} />, label: 'Weekly Stock Count' },
           { to: '/store-role/sales', icon: <DollarSign size={20} />, label: 'Sales Entry' },
           { to: '/store-role/reconciliation', icon: <FileText size={20} />, label: 'Sales vs Usage' },
@@ -99,6 +115,10 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         return [
           { to: '/admin/users', icon: <Users size={20} />, label: 'User Management' },
           { to: '/admin/catalog', icon: <Database size={20} />, label: 'Catalog Management' },
+          { to: '/procurement/market-form', icon: <FileText size={20} />, label: 'Market Form' },
+          { to: '/procurement/frozen-goods', icon: <Package size={20} />, label: 'Frozen Goods Form' },
+          { to: '/records-keeper/weekly-checks', icon: <CheckSquare size={20} />, label: 'Stock Entry Checks' },
+          { to: '/manager/damages', icon: <Trash2 size={20} />, label: 'Damages Register' },
           { to: '/admin/requisitions', icon: <Globe size={20} />, label: 'All Requisitions' },
           { to: '/admin/suppliers', icon: <Truck size={20} />, label: 'Supplier Management' },
           { to: '/admin/thresholds', icon: <ShieldAlert size={20} />, label: 'Threshold Management' },
@@ -107,6 +127,11 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           { to: '/manager/inbox', icon: <Inbox size={20} />, label: 'Requisition Inbox' },
           { to: '/manager/stock', icon: <Layers size={20} />, label: 'Stock Levels' },
           { to: '/shared/history', icon: <History size={20} />, label: 'Goods History' },
+        ];
+      case 'records_keeper':
+        return [
+          { to: '/records-keeper/weekly-checks', icon: <CheckSquare size={20} />, label: 'Stock Entry Checks' },
+          { to: '/shared/history', icon: <History size={20} />, label: 'Stock Entries & Receipts' },
         ];
       default:
         return [];

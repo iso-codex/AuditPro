@@ -10,7 +10,7 @@ const salesSchema = z.array(z.object({
   qty: z.number().positive("Quantity must be greater than 0")
 })).min(1, "Please add at least one valid item with a quantity greater than 0.");
 
-const DEPARTMENTS = ['Kitchen', 'Bar', 'Byte'];
+const DEPARTMENTS = ['Kitchen', 'Bar', 'Byte', 'Take Out'];
 
 const SalesEntry = () => {
   const { profile } = useAuth();
