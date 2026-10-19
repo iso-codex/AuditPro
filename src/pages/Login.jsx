@@ -30,6 +30,7 @@ const Login = () => {
       else if (profile.role === 'store') navigate('/store-role/inbox');
       else if (profile.role === 'mis') navigate('/mis/sales');
       else if (profile.role === 'procurement') navigate('/procurement/workspace');
+      else if (profile.role === 'records_keeper') navigate('/records-keeper/weekly-checks');
     }
   }, [user, profile, navigate]);
 
@@ -94,7 +95,7 @@ const Login = () => {
 
 
         
-        {user && profile && !['store_manager', 'department_staff', 'auditor', 'admin', 'manager', 'store', 'mis', 'procurement'].includes(profile.role) && (
+        {user && profile && !['store_manager', 'department_staff', 'auditor', 'admin', 'manager', 'store', 'mis', 'procurement', 'records_keeper'].includes(profile.role) && (
           <div className="login-error">
             <AlertCircle size={18} />
             <span>Profile found, but role '{profile.role}' is not recognized.</span>
